@@ -46,7 +46,8 @@ services:
       - DB_URL=${DB_URL}
     volumes:
       - ./scripts:/app/scripts
-    ports:       - "8501:8501"
+    ports:
+      - "8501:8501"
     depends_on:
       - postgres
     networks:
