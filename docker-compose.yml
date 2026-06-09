@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: afa-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumenes:
+      - /data/scouting/database:/var/lib/postgresql/data
+      - .sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5432:5432"
+    mem_limit: 1.5g
+    networks:
+      - moneyball
+
+  # Python app (ETL)
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: afa-etl
+    environment:
+      - DB_URL=${DB_URL}
+    volumenes:
+      - ./scripts:/app/scripts
+      - /data/scouting/raw:/data/raw
+      - /data/scouting/processed:/data/processed
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+    networks:
+      - moneyball
+    command: python scripts/fetch_afa_data.py
+
+  # Streamlit dashboard 
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: afa-streamlit
+    environment:
+      - DB_URL=${DB_URL}
+    volumes:
+      - ./scripts:/app/scripts
+    ports:       - "8501:8501"
+    depends_on:
+      - postgres
+    networks:
+      - moneyball
+    command: streamlit run scripts/dashboard.py --server.address 0.0.0.0
+
+  networks:
+    moneyball:
+      driver: bridge
