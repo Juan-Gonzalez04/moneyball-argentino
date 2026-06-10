@@ -8,9 +8,9 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumenes:
+    volumes:
       - /data/scouting/database:/var/lib/postgresql/data
-      - .sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     ports:
       - "5432:5432"
     mem_limit: 1.5g
@@ -25,7 +25,10 @@ services:
     container_name: afa-etl
     environment:
       - DB_URL=${DB_URL}
-    volumenes:
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${DB_USER}
+      - DB_NAME={DB_NAME}
+    volumes:
       - ./scripts:/app/scripts
       - /data/scouting/raw:/data/raw
       - /data/scouting/processed:/data/processed
@@ -44,6 +47,9 @@ services:
     container_name: afa-streamlit
     environment:
       - DB_URL=${DB_URL}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${DB_USER}
+      - DB_NAME={DB_NAME}
     volumes:
       - ./scripts:/app/scripts
     ports:
@@ -54,6 +60,6 @@ services:
       - moneyball
     command: streamlit run scripts/dashboard.py --server.address 0.0.0.0
 
-  networks:
-    moneyball:
-      driver: bridge
+networks:
+  moneyball:
+    driver: bridge

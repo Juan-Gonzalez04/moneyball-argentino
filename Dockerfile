@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código
 COPY scripts/ scripts/
 COPY sql/ sql/
-COPY config/ config/
+# COPY config/ config/
 
 # Por defecto, no hacer nada (override con docker-compose)
 CMD ["bash"] 
