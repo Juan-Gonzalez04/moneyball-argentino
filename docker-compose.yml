@@ -27,7 +27,7 @@ services:
       - DB_URL=${DB_URL}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_USER=${DB_USER}
-      - DB_NAME={DB_NAME}
+      - DB_NAME=${DB_NAME}
     volumes:
       - ./scripts:/app/scripts
       - /data/scouting/raw:/data/raw
@@ -37,7 +37,8 @@ services:
       - postgres
     networks:
       - moneyball
-    command: python scripts/fetch_afa_data.py
+    command: tail -f /dev/null
+    #command: python scripts/fetch_afa_data.py
 
   # Streamlit dashboard 
   streamlit:
@@ -49,7 +50,7 @@ services:
       - DB_URL=${DB_URL}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_USER=${DB_USER}
-      - DB_NAME={DB_NAME}
+      - DB_NAME=${DB_NAME}
     volumes:
       - ./scripts:/app/scripts
     ports:

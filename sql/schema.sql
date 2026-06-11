@@ -1,5 +1,5 @@
 -- Crear extensiones
-CREATE EXTENSION IF NOT EXISTS uuid-ossp;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Tabla de equipos
 CREATE TABLE IF NOT EXISTS teams (
