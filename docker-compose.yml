@@ -28,6 +28,7 @@ services:
       - DB_USER=${DB_USER}
       - DB_NAME=${DB_NAME}
     volumes:
+      - ./etl:/app/etl
       - ./scripts:/app/scripts
       - ${DATA_PATH:-./data}/raw:/data/raw
       - ${DATA_PATH:-./data}/processed:/data/processed

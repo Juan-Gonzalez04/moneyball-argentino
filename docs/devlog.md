@@ -60,3 +60,22 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
      `CREATE EXTENSION`, `CREATE TABLE (teams, players, player_goals)` y la creación de los índices.
 * **Lección / Buena Práctica:** Nunca montar el directorio raíz de datos de un motor de bases de datos directamente sobre un punto de montaje o directorio con metadatos del host; utilizar siempre un subdirectorio gestionado mediante variables de configuración oficiales (`PGDATA`).
 * **Próximos Pasos:** Definir contratos de datos con Pydantic v2 a partir del análisis y endpoint de AFA.
+
+---
+
+### [2026-10-07] - Extracción Inmutable y Contratos de Datos con Patrón de Cuarentena
+* **Fase / Módulo:** Fase 1 / ETL: Ingesta (Extract) y Validación (Contracts)
+* **Objetivo de la sesión:** Implementar `extract.py` para capturar el snapshot inmutable de AFA con firma SHA-256 en `data/raw/`, y `schemas.py` con Pydantic v2 para validar integridad estructural sin frenar el flujo ante anomalías.
+* **Desafío / Bloqueante encontrado:** 
+  1. Al correr `python -m etl.src.extract` dentro del contenedor `afa-etl`, se produjo un `ModuleNotFoundError: No module named 'etl'` porque la ruta del paquete no estaba montada ni en `PYTHONPATH`.
+  2. Los diccionarios de estadísticas (`goals`, `shots`, `cards`) presentan alta dispersión: solo contienen jugadores con registros no nulos. Validar estrictamente un modelo único unificado para cada jugador fallaba con `KeyError` o errores de campos faltantes.
+* **Análisis de Causa Raíz (RCA):**
+  1. El contenedor `afa-etl` original solo montaba `./scripts:/app/scripts`. Hacía falta montar `./etl:/app/etl` y declarar `ENV PYTHONPATH=/app` en el Dockerfile.
+  2. El payload de AFA utiliza mapas desacoplados indexados por ID de jugador (`{ "261314": { ... } }`) en vez de objetos de jugador consolidados.
+* **Solución Aplicada:**
+  1. Se actualizó `Dockerfile` y `docker-compose.yml` para incorporar el paquete modular `etl` y `PYTHONPATH`.
+  2. Se diseñó `extract.py` con guardado timestamped (`playersStatsFull_YYYYMMDDTHHMMSSZ.json`) y verificación de integridad SHA-256 (Bronze Layer).
+  3. Se diseñó `schemas.py` desacoplando contratos para `TeamRawContract`, `PlayerRawContract` y métricas, implementando la función `validate_afa_payload` que aísla registros defectuosos en cuarentena.
+  4. Resultado en prueba real con API en vivo: **30/30 equipos válidos**, **790/790 jugadores válidos**, 0 registros en cuarentena y tiempo de validación de 41 milisegundos.
+* **Lección / Buena Práctica:** Adoptar el *Quarantine Pattern* en pipelines batch: nunca permitir que un registro defectuoso aislado haga fracasar una ingesta completa de datos.
+* **Próximos Pasos:** Implementar `transform.py` y `load.py` para realizar el Upsert idempotente en PostgreSQL.
