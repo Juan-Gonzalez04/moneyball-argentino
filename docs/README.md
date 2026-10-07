@@ -15,7 +15,8 @@ docs/
     ├── 0001-orquestacion-multicontenedor-docker-compose.md
     ├── 0002-persistencia-relacional-hibrida-postgresql.md
     ├── 0003-presentacion-analitica-streamlit.md
-    └── 0004-data-contracts-pydantic-cuarentena.md
+    ├── 0004-data-contracts-pydantic-cuarentena.md
+    └── 0005-cliente-http-httpx.md
 ```
 
 ---
@@ -29,6 +30,7 @@ Los **ADRs** (*Architecture Decision Records*) documentan formalmente las decisi
 * [ADR-0002: Persistencia Relacional Híbrida con PostgreSQL y JSONB](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0002-persistencia-relacional-hibrida-postgresql.md)
 * [ADR-0003: Capa de Presentación Analítica con Streamlit](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0003-presentacion-analitica-streamlit.md)
 * [ADR-0004: Contratos de Datos con Pydantic v2 y Patrón de Cuarentena](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0004-data-contracts-pydantic-cuarentena.md)
+* [ADR-0005: Cliente HTTP con HTTPX para Ingesta y Resiliencia](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0005-cliente-http-httpx.md)
 
 ### Cómo crear un nuevo ADR
 1. Copiar [docs/adr/0000-template.md](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0000-template.md) asignando el siguiente número correlativo de 4 dígitos (ej. `0004-data-contracts-pydantic.md`).
