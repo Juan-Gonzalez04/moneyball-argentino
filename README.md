@@ -132,3 +132,18 @@ Una vez iniciados los servicios, accede al explorador de scouting en:
 | **SQLAlchemy Core / Psycopg2** | Conectividad y Ejecución Batch | Inserciones masivas eficientes y ejecución de sentencias Upsert nativas (`ON CONFLICT`). |
 | **Pandas** | Análisis Vectorizado | Manipulación de dataframes para cálculos de percentiles y rankings. |
 | **Streamlit** | Capa de Presentación | Desarrollo ágil de dashboards analíticos reactivos sin sobrecarga de frameworks frontend pesados. |
+
+---
+
+## 9. Decisiones de Arquitectura y Trade-offs
+
+El diseño del proyecto sigue estándares de ingeniería de la industria, documentando el razonamiento técnico, el análisis de alternativas y los compromisos asumidos mediante **Architecture Decision Records (ADRs)** y un **Cuaderno de Bitácora (Engineering Devlog)**.
+
+| Registro | Decisión Adoptada | Alternativas Descartadas | Compromiso / Trade-off Principal |
+| :--- | :--- | :--- | :--- |
+| **[ADR-0001](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0001-orquestacion-multicontenedor-docker-compose.md)** | **Docker Compose** | Kubernetes / k3s, Scripts Systemd en bare-metal | Despliegue mononodo sin plano de control pesado para priorizar los 4 GB de RAM del servidor físico. |
+| **[ADR-0002](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0002-persistencia-relacional-hibrida-postgresql.md)** | **PostgreSQL 15 + JSONB** | MongoDB, SQLite, MySQL | Persistencia híbrida (relacional + documental) con *Compute Pushdown* (Window Functions) para proteger la memoria de Python. |
+| **[ADR-0003](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0003-presentacion-analitica-streamlit.md)** | **Streamlit** | React + Vite (SPA + REST API), Power BI | Time-to-market y foco 100% en ingeniería de datos y backend, con ejecución headless nativa en Linux. |
+
+* 📖 **Documentación completa:** Consulta el directorio [`docs/`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/README.md).
+* 📝 **Bitácora de resolución de problemas:** Revisa el [`Cuaderno de Bitácora Técnico`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/devlog.md) para ver diagnósticos de fallos y lecciones aprendidas en caliente.
