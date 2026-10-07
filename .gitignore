@@ -14,10 +14,11 @@ __pycache__/
 
 # Datos (grandes para git)
 data/raw/*
-data/procesed/*
+data/processed/*
 data/database/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/database/.gitkeep
 
 # Distribution / packaging
 .Python
