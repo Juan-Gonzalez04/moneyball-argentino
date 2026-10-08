@@ -97,6 +97,20 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
      - Segunda corrida de prueba: **0.63 segundos**, 0 errores y 0 duplicados.
      - Consulta SQL Sub-23 ejecutada con éxito (detectando a Máximo Palazzo, Juan Pablo Ludueña, Josué Reinatti, Luciano Vallejo y Thiago Silvero como líderes de minutos).
 * **Lección / Buena Práctica:** Diseñar pipelines batch con idempotencia nativa a nivel de motor de base de datos (`ON CONFLICT`) para tolerar reintentos automáticos sin generar estados corruptos o duplicados.
-* **Próximos Pasos:** Integrar visualización en Streamlit para explotar interactivamente las métricas de scouting cargadas.
+* **Próximos Pasos:** Formalizar política de backups, estrategia de activos estáticos e integración con visualización en Streamlit.
 
+---
 
+### [2026-10-08] - Seguridad de Respaldos, Disaster Recovery y Gestión de Activos Estáticos
+* **Fase / Módulo:** Arquitectura, Seguridad de Datos & Activos (ADR-0009)
+* **Objetivo de la sesión:** Analizar las vulnerabilidades de los respaldos en texto plano (`.sql`) frente a estándares de la industria (cifrado, compresión, PITR) y resolver la arquitectura de almacenamiento para escudos de clubes y fotos de futbolistas sin penalizar los recursos de hardware del nodo *Argos* (4 GB RAM).
+* **Desafío / Análisis Crítico:**
+  1. **Inseguridad de `.sql` en texto plano:** Los dumps sin compresión ni cifrado exponen datos crudos a cualquier lectura no autorizada, consumen 5-10x más almacenamiento y requieren restauraciones secuenciales lentas.
+  2. **Sobrecarga de Base64 en BD:** Almacenar imágenes en columnas `BYTEA` o Base64 dentro de PostgreSQL añade un 33% de sobrecarga por encoding, satura `shared_buffers` desplazando datos relacionales e índices analíticos, y anula la caché HTTP nativa del navegador.
+* **Solución Aplicada:**
+  1. Redacté y registré formalmente el **ADR-0009** (*Estrategia de Respaldo, Recuperación y Almacenamiento de Activos*).
+  2. Definición del estándar de respaldo: uso del formato binario nativo comprimido de PostgreSQL (`pg_dump -Fc`), canalizable a herramientas de cifrado en reposo (GPG/age), habilitando restauraciones paralelas selectivas (`pg_restore -j 4`).
+  3. Establecimiento del principio de **Lakehouse Replayability**: la capa Bronze inmutable (`/data/scouting/raw/`) con firmas SHA-256 sirve como fuente canónica de verdad para reconstruir el 100% de la base relacional de forma determinista ante desastres.
+  4. Desacople de multimedia: los escudos se gestionan como archivos PNG estáticos en disco (`dashboard/assets/teams/{team_id}.png`), descargados programáticamente vía API de Wikimedia Commons.
+* **Lección / Buena Práctica:** Separar con rigor el plano relacional/analítico del almacenamiento de objetos estáticos. En entornos productivos, los respaldos jamás deben persistirse en texto plano sin cifrado ni control de acceso estricto.
+* **Próximos Pasos:** Implementar `scripts/fetch_team_logos.py` para poblar los activos estáticos y construir el dashboard interactivo de scouting en Streamlit (Fase 4).
