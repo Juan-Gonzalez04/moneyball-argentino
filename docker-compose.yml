@@ -54,13 +54,14 @@ services:
       - DB_NAME=${DB_NAME}
     volumes:
       - ./scripts:/app/scripts
+      - ./dashboard:/app/dashboard
     ports:
       - "8501:8501"
     depends_on:
       - postgres
     networks:
       - moneyball
-    command: streamlit run scripts/dashboard.py --server.address 0.0.0.0
+    command: streamlit run dashboard/app.py --server.address 0.0.0.0
 
 networks:
   moneyball:

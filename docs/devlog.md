@@ -114,3 +114,21 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
   4. Desacople de multimedia: los escudos se gestionan como archivos PNG estáticos en disco (`dashboard/assets/teams/{team_id}.png`), descargados programáticamente vía API de Wikimedia Commons.
 * **Lección / Buena Práctica:** Separar con rigor el plano relacional/analítico del almacenamiento de objetos estáticos. En entornos productivos, los respaldos jamás deben persistirse en texto plano sin cifrado ni control de acceso estricto.
 * **Próximos Pasos:** Implementar `scripts/fetch_team_logos.py` para poblar los activos estáticos y construir el dashboard interactivo de scouting en Streamlit (Fase 4).
+
+---
+
+### [2026-10-08] - Fase 4: Implementación del Scouting Dashboard en Streamlit & Cierre del Vertical Slice
+* **Fase / Módulo:** Fase 4 / Presentación: Dashboard Analítico & Visualización
+* **Objetivo de la sesión:** Desarrollar `dashboard/app.py` para conectar la base analítica en PostgreSQL con una interfaz interactiva de scouting deportivo, incorporando filtros Sub-23, métricas avanzadas (minutos, goles, precisión de pases, recuperaciones), escudos oficiales de los 30 clubes y optimización de memoria.
+* **Desafío / Bloqueante encontrado:**
+  1. Integración de escudos oficiales en el contenedor Docker sin sobrecargar la red ni violar el desacople de almacenamiento.
+  2. Al graficar métricas con Vega-Lite / Altair (`st.scatter_chart`), PostgreSQL devolvía los cálculos redondeados como tipos `decimal.Decimal`, generando advertencias de serialización.
+* **Solución Aplicada:**
+  1. Diseñé `dashboard/app.py` con una arquitectura basada en pestañas (*Radar Sub-23*, *Explorador Analítico*, *Resumen por Clubes* y *Salud del Pipeline*).
+  2. Implementé caché con TTL (`@st.cache_data(ttl=60)`) y *Compute Pushdown* en PostgreSQL para proteger la memoria RAM en el servidor *Argos*.
+  3. Integré la resolución física de escudos desde `dashboard/assets/teams/{team_id}.png` con fallback elegante para clubes o avatares sin imagen.
+  4. Casteé las columnas analíticas derivadas (`pass_accuracy_pct`, `avg_age`) a tipo flotante para visualizaciones vectoriales fluidas en Streamlit.
+  5. Actualicé `Dockerfile` y `docker-compose.yml` montando el volumen `./dashboard:/app/dashboard` y redirigiendo el comando de arranque a `dashboard/app.py`.
+  6. Verificación empírica: el servicio `afa-streamlit` responde con HTTP 200 en `http://localhost:8501`, cargando los 790 futbolistas y los 30 clubes con sus respectivos escudos.
+* **Lección / Buena Práctica:** Separar la lógica pesada de agregación delegándola al motor de base de datos y utilizar almacenamiento en caché en memoria con TTL para brindar interactividad instantánea al usuario sin degradar la infraestructura.
+* **Próximos Pasos:** Evaluación de Fase 2 (incorporación de métricas a nivel de equipo vía `teamsStats.json` o clustering/percentiles avanzados de jugadores).
