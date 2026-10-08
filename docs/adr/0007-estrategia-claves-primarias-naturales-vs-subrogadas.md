@@ -10,7 +10,7 @@
 En el modelado relacional de PostgreSQL para las tablas `players` y `teams`, se debe definir la estrategia de generación y asignación de Claves Primarias (Primary Keys - PK).
 
 Existen dos enfoques principales en la ingeniería de bases de datos:
-1. **Claves Naturales (Domain/External Keys):** Utilizar los identificadores numéricos provistos directamente por el origen de datos oficial (AFA / DataFactory, ej. Belgrano = `124`, jugador = `261314`).
+1. **Claves Naturales (Domain/External Keys):** Utilizar los identificadores numéricos provistos directamente por el origen de datos oficial (AFA / DataFactory).
 2. **Claves Subrogadas (Surrogate Keys):** Generar claves artificiales independientes del dominio, como enteros autoincrementales (`SERIAL` / `BIGSERIAL`) o identificadores únicos globales (`UUID`).
 
 Se debe evaluar el impacto de esta decisión en la simplicidad del código de ingesta, el rendimiento de los índices B-Tree en hardware acotado (*Argos*) y la resiliencia ante eventuales cambios en el proveedor de datos.
@@ -18,7 +18,7 @@ Se debe evaluar el impacto de esta decisión en la simplicidad del código de in
 ---
 
 ## 2. Factores Decisorios (Architecture Drivers)
-* **Simplicidad y Principio KISS (Fase 1 MVP):** Evitar capas innecesarias de mapeo y tablas intermediarias de equivalencias.
+* **Simplicidad y Principio KISS:** Evitar capas innecesarias de mapeo y tablas intermediarias de equivalencias.
 * **Eficiencia de Almacenamiento e Índices (Nodo Argos):** Minimizar el tamaño en disco y memoria RAM de los índices de claves foráneas.
 * **Integridad Referencial:** Garantizar que las relaciones entre jugadores y clubes se resuelvan de forma inmediata y determinista durante la carga.
 
@@ -40,13 +40,12 @@ Se debe evaluar el impacto de esta decisión en la simplicidad del código de in
 * **Pros:**
   * **Cero sobrecarga de lookups:** Como el JSON de AFA ya entrega `teamId: 124` en el objeto del jugador, la inserción relacional es directa e inmediata sin lecturas previas.
   * **Índices ultra compactos:** Las claves primarias y foráneas de 4 bytes (`INT`) garantizan que los índices B-Tree queden completamente cacheados en los 128 MB de `shared_buffers` de PostgreSQL en Argos.
-  * **Inmutabilidad en la fuente:** Los proveedores oficiales de ligas deportivas (DataFactory / Genius Sports) no reciclan identificadores de atletas ni de clubes por regulaciones de trazabilidad y auditoría.
 * **Cons:** Acoplamiento con el sistema de numeración del proveedor oficial de la liga argentina.
 
 ---
 
 ## 4. Decisión Tomada
-Se decide utilizar los **identificadores numéricos de AFA como Claves Primarias naturales directas** en `teams` (`team_id INT PRIMARY KEY`) y `players` (`player_id INT PRIMARY KEY`) para la **Fase 1 (MVP)**.
+Se decide utilizar los **identificadores numéricos de AFA como Claves Primarias naturales directas** en `teams` (`team_id INT PRIMARY KEY`) y `players` (`player_id INT PRIMARY KEY`)**.
 
 ---
 

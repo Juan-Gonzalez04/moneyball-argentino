@@ -125,7 +125,7 @@ Una vez iniciados los servicios, accede al explorador de scouting en:
 
 | Dependencia | Rol en el Proyecto | Justificación Técnica |
 | :--- | :--- | :--- |
-| **Docker & Compose** | Infraestructura y Reproducibilidad | Aislar dependencias, garantizar paridad total entre la notebook de desarrollo y el servidor Argos. |
+| **Docker & Compose** | Infraestructura y Reproducibilidad | Aislar dependencias, garantizar paridad total entre entorno de desarrollo y entorno final (ARGOS). |
 | **PostgreSQL 15 (Alpine)** | Motor Relacional / Almacén Analítico | Integridad referencial ACID, soporte de tipos nativos `JSONB` y optimización con funciones de ventana (*Window Functions*). |
 | **Pydantic (v2)** | Data Contracts & Validación | Tipado estricto en tiempo de ejecución; garantiza que ningún registro malformado corrompa la base analítica. |
 | **HTTPX** | Cliente HTTP | Cliente moderno con soporte síncrono y asíncrono, gestión granular de timeouts, reintentos y sesiones. |
@@ -148,6 +148,22 @@ El diseño del proyecto sigue estándares de ingeniería de la industria, docume
 | **[ADR-0005](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0005-cliente-http-httpx.md)** | **HTTPX** | urllib.request, requests, aiohttp | Cliente moderno con HTTP/2, timeouts estrictos y paridad síncrona/asíncrona para prevenir bloqueos de red. |
 | **[ADR-0006](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0006-pipeline-secuencial-evtl-srp.md)** | **Microarquitectura E-V-T-L** | Script monolítico etl.py, ETL clásico de 3 fases | Desacople de fases (SRP) con validación de primera clase para testeabilidad aislada y tolerancia a fallos. |
 | **[ADR-0007](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0007-estrategia-claves-primarias-naturales-vs-subrogadas.md)** | **Claves Naturales de AFA** | Claves subrogadas UUID, SERIAL con lookup | Cero lookups previos y huella compacta de índices B-Tree (4 bytes) para Fase 1, con disparador de migración documentado. |
+| **[ADR-0008](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0008-inyeccion-fuentes-externas-entorno-data-policy.md)** | **Inyección de Fuentes vía .env** | URLs hardcodeadas en código, config.json versionado | Higiene en repositorio público, portabilidad de testing y marco legal de uso de datos educativos. |
 
-* 📖 **Documentación completa:** Consulta el directorio [`docs/`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/README.md).
-* 📝 **Bitácora de resolución de problemas:** Revisa el [`Cuaderno de Bitácora Técnico`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/devlog.md) para ver diagnósticos de fallos y lecciones aprendidas en caliente.
+* **Documentación completa:** Consulta el directorio [`docs/`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/README.md).
+* **Bitácora de resolución de problemas:** Revisa el [`Cuaderno de Bitácora Técnico`](file:///home/juan/Repos/Personal/moneyball-argentino/docs/devlog.md) para ver diagnósticos de fallos y lecciones aprendidas.
+
+---
+
+## 10. Descargo de Responsabilidad y Términos de Uso (Data Disclaimer)
+
+* **Finalidad Exclusivamente Educativa y Académica:** Este proyecto fue desarrollado como una pieza de investigación técnica, formación en ingeniería de datos y portfolio profesional para demostrar habilidades de arquitectura y diseño de software.
+* **Titularidad de los Datos:** Todos los datos fácticos, estadísticas deportivas, nombres de futbolistas, instituciones y marcas comerciales vinculadas a la Primera División del fútbol argentino pertenecen a sus respectivos titulares (Asociación del Fútbol Argentino - AFA y sus proveedores oficiales de datos).
+* **Uso No Comercial:** MoneyBall Argentino no persigue ningún fin de lucro, ni comercializa, redistribuye o monetiza de ninguna forma los conjuntos de datos obtenidos.
+* **Consumo Ético y Responsable:** El sistema implementa políticas de almacenamiento inmutable en disco (Bronze Layer) y hashes de verificación (SHA-256) para evitar peticiones redundantes y no saturar la infraestructura externa.
+
+---
+
+## 11. Licencia
+
+El código fuente de este proyecto se distribuye bajo la licencia **[MIT](LICENSE)**. Consulta el archivo `LICENSE` para más detalles.

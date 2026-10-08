@@ -61,7 +61,13 @@ def fetch_players_stats_full(
     now_utc = datetime.now(timezone.utc)
     timestamp_str = now_utc.strftime("%Y%m%dT%H%M%SZ")
     
-    logger.info("Iniciando extracción desde endpoint AFA: %s", url)
+    if not url:
+        raise ValueError(
+            "La URL del endpoint de estadísticas no está configurada. "
+            "Por favor, configure AFA_PLAYERS_STATS_URL en su archivo .env"
+        )
+
+    logger.info("Iniciando extracción desde endpoint: %s", url)
     headers = {
         "User-Agent": HTTP_USER_AGENT,
         "Accept": "application/json",

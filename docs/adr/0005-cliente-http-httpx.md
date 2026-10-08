@@ -29,7 +29,7 @@ Se requiere un cliente HTTP en Python que:
 
 ### Opción 1: Biblioteca Estándar (`urllib.request`)
 * **Pros:** Sin dependencias externas añadidas al `requirements.txt`.
-* **Cons:** API arcaica de bajo nivel, no maneja pooling de conexiones HTTP de forma transparente, soporte nulo de HTTP/2 y código verboso y engorroso para configurar headers, redirecciones y timeouts.
+* **Cons:** API arcaica de bajo nivel, no maneja pooling de conexiones HTTP de forma transparente, soporte nulo de HTTP/2 y código verboso para configurar headers, redirecciones y timeouts.
 
 ### Opción 2: `requests`
 * **Pros:** Biblioteca histórica más utilizada y testeada de la comunidad de Python.
@@ -40,7 +40,7 @@ Se requiere un cliente HTTP en Python que:
 
 ### Opción 3: `aiohttp`
 * **Pros:** Excelente rendimiento en pipelines puramente asíncronos.
-* **Cons:** Obliga a estructurar todo el módulo alrededor de un event loop de `asyncio`, añadiendo complejidad sintáctica innecesaria para un pipeline secuencial simple por lotes (violación del principio KISS).
+* **Cons:** Obliga a estructurar todo el módulo alrededor de un event loop de `asyncio`, añadiendo complejidad sintáctica innecesaria para un pipeline secuencial simple por lotes (va en contra del principio KISS).
 
 ### Opción 4: `httpx` (Seleccionada)
 * **Pros:**

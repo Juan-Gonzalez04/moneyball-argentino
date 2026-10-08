@@ -18,7 +18,8 @@ docs/
     ├── 0004-data-contracts-pydantic-cuarentena.md
     ├── 0005-cliente-http-httpx.md
     ├── 0006-pipeline-secuencial-evtl-srp.md
-    └── 0007-estrategia-claves-primarias-naturales-vs-subrogadas.md
+    ├── 0007-estrategia-claves-primarias-naturales-vs-subrogadas.md
+    └── 0008-inyeccion-fuentes-externas-entorno-data-policy.md
 ```
 
 ---
@@ -35,6 +36,7 @@ Los **ADRs** (*Architecture Decision Records*) documentan formalmente las decisi
 * [ADR-0005: Cliente HTTP con HTTPX para Ingesta y Resiliencia](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0005-cliente-http-httpx.md)
 * [ADR-0006: Microarquitectura E-V-T-L y Principio de Responsabilidad Única](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0006-pipeline-secuencial-evtl-srp.md)
 * [ADR-0007: Estrategia de Claves Primarias: Claves Naturales de AFA vs. Claves Subrogadas](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0007-estrategia-claves-primarias-naturales-vs-subrogadas.md)
+* [ADR-0008: Inyección de Fuentes Externas vía Entorno y Política de Uso de Datos](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0008-inyeccion-fuentes-externas-entorno-data-policy.md)
 
 ### Cómo crear un nuevo ADR
 1. Copiar [docs/adr/0000-template.md](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0000-template.md) asignando el siguiente número correlativo de 4 dígitos (ej. `0004-data-contracts-pydantic.md`).

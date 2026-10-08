@@ -27,6 +27,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_USER=${DB_USER}
       - DB_NAME=${DB_NAME}
+      - AFA_PLAYERS_STATS_URL=${AFA_PLAYERS_STATS_URL}
     volumes:
       - ./etl:/app/etl
       - ./scripts:/app/scripts

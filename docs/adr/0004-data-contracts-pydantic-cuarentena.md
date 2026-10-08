@@ -7,7 +7,7 @@
 ---
 
 ## 1. Contexto y Planteo del Problema
-El pipeline consume datos desde endpoints públicos de AFA (`playersStatsFull.json`), los cuales escapan a nuestro control. Estas APIs no ofrecen garantías de versionado ni contratos semánticos formales: en cualquier momento un campo puede cambiar de tipo (ej. `age` entregado como string o nulo), renombrarse o eliminarse (*breaking changes*).
+El pipeline consume datos desde endpoints públicos de AFA (`playersStatsFull.json`), los cuales escapan a mi control. Estas APIs no ofrecen garantías de versionado ni contratos semánticos formales: en cualquier momento un campo puede cambiar de tipo (ej. `age` entregado como string o nulo), renombrarse o eliminarse (*breaking changes*).
 
 Si un pipeline de datos inyecta registros no validados directamente en PostgreSQL:
 1. Puede abortar la transacción completa por fallas de tipo o violaciones de restricciones, perdiendo todo el lote.
@@ -35,7 +35,7 @@ Si un pipeline de datos inyecta registros no validados directamente en PostgreSQ
 
 ### Opción 3: Pydantic v2 con Política de Cuarentena (Seleccionada)
 * **Pros:**
-  * **Core en Rust:** Rendimiento extremo (procesa 790 jugadores y 30 equipos en ~40 ms).
+  * **Core en Rust:** Rendimiento extremo.
   * **Contratos declarativos y legibles:** Modelado con `BaseModel`, campos requeridos/opcionales y validaciones de rango numérico (`ge`, `le`).
   * **Patrón de Cuarentena (*Quarantine Pattern*):** La función `validate_afa_payload` captura excepciones `ValidationError` por entidad individual, guardando el error en un reporte de cuarentena sin interrumpir el lote global.
 * **Cons:** Añade la dependencia de `pydantic>=2.6`.
@@ -51,7 +51,7 @@ Se implementan **Data Contracts** mediante Pydantic v2 en `etl/src/schemas.py`. 
 
 ### Consecuencias Positivas
 * El pipeline es invulnerable a romper la base de datos por cambios menores de la API de origen.
-* Proporciona trazabilidad completa de registros anómalos.
+* Proporciona trazabilidad completa de registros anómalos gracias a los logs.
 * Los desarrolladores y evaluadores pueden consultar `schemas.py` como la especificación canónica del dato esperado.
 
 ### Limitaciones Aceptadas
