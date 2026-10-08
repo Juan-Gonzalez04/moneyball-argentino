@@ -80,3 +80,23 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
 * **Lección / Buena Práctica:** Adoptar el *Quarantine Pattern* en pipelines batch: nunca permitir que un registro defectuoso aislado haga fracasar una ingesta completa de datos.
 * **Próximos Pasos:** Implementar `transform.py` y `load.py` para realizar el Upsert idempotente en PostgreSQL.
 
+---
+
+### [2026-10-08] - Completitud del Vertical Slice: Transformación y Carga Idempotente (Upsert)
+* **Fase / Módulo:** Fase 1 / ETL: Transformación (Transform), Carga (Load) y Orquestación (Runner)
+* **Objetivo de la sesión:** Implementar `transform.py` para normalizar los datos validados a tuplas relacionales y `load.py` para ejecutar la persistencia masiva en PostgreSQL garantizando idempotencia (`ON CONFLICT DO UPDATE`). Conectar el flujo completo en `main.py` y validar la primera consulta de scouting Sub-23.
+* **Desafío / Bloqueante encontrado:** Mantener la integridad referencial durante la inserción batch sin violar claves foráneas (`players.team_id -> teams.team_id`) y evitar colisiones de clave primaria al reejecutar el pipeline de forma sucesiva.
+* **Análisis de Causa Raíz (RCA):** Si los jugadores se insertan antes de los equipos o si un jugador tiene un `teamId` inexistente, PostgreSQL aborta la transacción completa. Además, en un pipeline batch, múltiples ejecuciones sobre el mismo snapshot generan errores de unicidad si se usan sentencias `INSERT` estándar.
+* **Solución Aplicada:**
+  1. Diseñé `transform.py` con casteo seguro de fechas (`parse_date`), saneamiento de nombres y empaquetado de payloads originales a cadenas JSON para las columnas `JSONB`.
+  2. Implementé `load.py` con `psycopg2.extras.execute_values` y orden estricto de carga: 1° `teams`, 2° `players`, 3° `player_goals` y `player_stats`.
+  3. Apliqué sentencias `ON CONFLICT (...) DO UPDATE` en todas las tablas para garantizar **100% de idempotencia**.
+  4. Resultados empíricos:
+     - Pipeline ejecutado en **0.82 segundos**.
+     - **30 equipos cargados**, **790 jugadores cargados**, **213 goleadores registrados**.
+     - Segunda corrida de prueba: **0.63 segundos**, 0 errores y 0 duplicados.
+     - Consulta SQL Sub-23 ejecutada con éxito (detectando a Máximo Palazzo, Juan Pablo Ludueña, Josué Reinatti, Luciano Vallejo y Thiago Silvero como líderes de minutos).
+* **Lección / Buena Práctica:** Diseñar pipelines batch con idempotencia nativa a nivel de motor de base de datos (`ON CONFLICT`) para tolerar reintentos automáticos sin generar estados corruptos o duplicados.
+* **Próximos Pasos:** Integrar visualización en Streamlit para explotar interactivamente las métricas de scouting cargadas.
+
+
