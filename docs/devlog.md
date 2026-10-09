@@ -170,4 +170,21 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
   3. **Rankings Directos por Métrica:** Cálculo dinámico del puesto relativo del jugador frente a sus pares posicionales (ej. `+1.8 vs media (1.2) | Puesto #3° de 68 delanteros`).
   4. **Dumbbell Plots Aislados:** Cada dimensión técnica cuenta con su propio gráfico horizontal de mancuerna, adaptando el eje X al rango natural de la métrica y eliminando distorsiones.
 * **Lección / Buena Práctica:** Modularizar las interfaces complejas de Streamlit por vistas y componentes desacoplados. La especialización posicional de métricas es indispensable en analítica deportiva: ninguna métrica genérica sirve si no respeta el rol funcional del deportista.
-* **Próximos Pasos:** Avanzar hacia la Fase 2 del proyecto (ingesta de `teamsStats.json` y desarrollo del motor de similitud de futbolistas Per 90).
+* **Próximos Pasos:** Formalizar ADR-0010 documentando la granularidad temporal y el caso de transferencias entre torneos, y preparar la Pull Request de cierre de Fase 1.
+
+---
+
+### [2026-10-08] - Formalización de ADR-0010: Granularidad Temporal, Acumulación Anual y Cierre de Fase 1
+* **Fase / Módulo:** Arquitectura & Modelado Dimensional (ADR-0010) / Hito: Fin de Fase 1 (Vertical Slice)
+* **Objetivo de la sesión:** Analizar y registrar formalmente la estrategia de modelado dimensional ante la complejidad de certámenes semestrales y transferencias de mitad de temporada de la AFA (auditoría empírica del caso Tiziano Perrotta), preparando la base para la consolidación ANUAL y cerrando la Fase 1.
+* **Desafío / Análisis de Datos:**
+  1. Detección de una discrepancia en goles de Defensa y Justicia (18 en dashboard vs. 16 oficiales).
+  2. Causa raíz: Tiziano Perrotta anotó 2 goles en la Fecha 2 para Banfield antes de ser transferido al Elche y cedido a Defensa en agosto. La API individual de AFA actualizó su club a Defensa manteniendo sus 2 goles del certamen. Sumar los planteles actuales atribuye erróneamente goles pasados al nuevo club.
+  3. Riesgo de sobreescritura destructiva entre torneos (Apertura pisando a Clausura) si se persiste con clave `(player_id, season_year)` e idempotencia Upsert.
+* **Solución Aplicada:**
+  1. Redacté y registré formalmente el **ADR-0010** (*Estrategia de Granularidad Temporal, Acumulación Anual y Desacople de Torneos*).
+  2. Se adoptó la clave primaria compuesta por torneo `(player_id, season_year, tournament_id)` para persistencia pura sin pérdida histórica ni duplicaciones por reintentos.
+  3. Se diseñó la exposición analítica mediante **Vistas SQL Anuales** (`v_player_stats_annual`) para brindar al scouting una referencia anual homogénea inmune a los cambios de formato de AFA.
+  4. Se formalizó la regla: las estadísticas de clubes deben desacoplarse del plantel y consumirse desde el endpoint oficial de equipos (`teamsStats.json` en Fase 2).
+* **Lección / Buena Práctica:** En ingeniería de datos para deportes, el grano del dato del atleta nunca equivale al grano del club debido a la movilidad de las dimensiones (*Slowly Changing Dimensions*).
+* **Próximos Pasos:** Abrir Pull Request exhaustiva para mergear la Fase 1 (*Vertical Slice MVP*) a la rama principal y dar inicio a la Fase 2 (Métricas oficiales de clubes y Motor de Similitud Per 90).

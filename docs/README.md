@@ -20,7 +20,8 @@ docs/
     ├── 0006-pipeline-secuencial-evtl-srp.md
     ├── 0007-estrategia-claves-primarias-naturales-vs-subrogadas.md
     ├── 0008-inyeccion-fuentes-externas-entorno-data-policy.md
-    └── 0009-estrategia-backups-activos-estaticos.md
+    ├── 0009-estrategia-backups-activos-estaticos.md
+    └── 0010-estrategia-granularidad-temporal-acumulacion-anual.md
 ```
 
 ---
@@ -39,6 +40,7 @@ Los **ADRs** (*Architecture Decision Records*) documentan formalmente las decisi
 * [ADR-0007: Estrategia de Claves Primarias: Claves Naturales de AFA vs. Claves Subrogadas](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0007-estrategia-claves-primarias-naturales-vs-subrogadas.md)
 * [ADR-0008: Inyección de Fuentes Externas vía Entorno y Política de Uso de Datos](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0008-inyeccion-fuentes-externas-entorno-data-policy.md)
 * [ADR-0009: Estrategia de Respaldo, Recuperación y Almacenamiento de Activos](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0009-estrategia-backups-activos-estaticos.md)
+* [ADR-0010: Estrategia de Granularidad Temporal, Acumulación Anual y Desacople de Torneos](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0010-estrategia-granularidad-temporal-acumulacion-anual.md)
 
 ### Cómo crear un nuevo ADR
 1. Copiar [docs/adr/0000-template.md](file:///home/juan/Repos/Personal/moneyball-argentino/docs/adr/0000-template.md) asignando el siguiente número correlativo de 4 dígitos (ej. `0004-data-contracts-pydantic.md`).
