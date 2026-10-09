@@ -149,4 +149,25 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
   5. **Dispersión Táctica en Altair:** Gráficos interactivos con tooltips que revelan nombre, club, posición y métricas exactas al pasar el cursor, complementados con líneas de corte en las medias y un desglose pedagógico de los 4 cuadrantes tácticos.
   6. **Panel de Prospectos Sub-23 & Explorador CSV:** Muestra filtrada de promesas con nota metodológica sobre la necesidad de acumulación temporal para futuras proyecciones, más exportación tabular a CSV.
 * **Lección / Buena Práctica:** El valor del dato en analítica deportiva radica en su contexto relativo. Comparar contra la media del rol o de la competición y explicar claramente los cuadrantes de una distribución transforma un simple gráfico en una herramienta de toma de decisiones.
-* **Próximos Pasos:** Diseñar las bases para la Fase 2: métricas colectivas avanzadas (`teamsStats.json`) y modelado de ratios Per 90 minutos para el motor de similitud de futbolistas (*Cosine Similarity*).
+* **Próximos Pasos:** Modularizar la aplicación para evitar el crecimiento inmanejable de un solo script y adaptar la evaluación según el rol táctico (especialmente arqueros).
+
+---
+
+### [2026-10-08] - Modularización de la Capa de Presentación y Especialización Posicional
+* **Fase / Módulo:** Fase 4 / Arquitectura Frontend & Especialización Analítica
+* **Objetivo de la sesión:** Desacoplar el archivo monolítico `dashboard/app.py` en una arquitectura modular por vistas (`views/`) y componentes (`components/`), incorporar métricas especializadas para arqueros (`saves_total`), calcular el puesto relativo por métrica frente a los pares posicionales y separar los *Dumbbell Plots* en gráficos individuales por dimensión técnica.
+* **Desafío / Análisis Crítico:**
+  1. **Monolito de UI:** Mantener todas las pestañas, lógica de base de datos y constructores de gráficos en un único archivo de más de 600 líneas violaba el Principio de Responsabilidad Única (SRP) y dificultaba el mantenimiento colaborativo.
+  2. **Inconsistencia en Arqueros:** Evaluar a los arqueros con métricas de futbolistas de campo (goles, tiros al arco) distorsionaba el análisis. Los guardametas requieren métricas de contención (atajadas) y salida con los pies (pases y precisión).
+  3. **Escala en Dumbbells:** Unificar múltiples métricas en un solo gráfico horizontal forzaba distorsiones de escala (ej. 4 goles vs 300 pases).
+* **Solución Aplicada:**
+  1. **Arquitectura Modular:**
+     * `dashboard/data.py`: Centraliza la conexión a PostgreSQL, el decorador `@st.cache_data` con TTL, la resolución de escudos y los cálculos globales de rankings.
+     * `dashboard/components/charts.py`: Constructores de visualizaciones en Altair (`build_single_dumbbell` y `build_quadrant_scatter`).
+     * `dashboard/views/`: Desacople de vistas en módulos independientes: `teams_view.py`, `leaders_view.py`, `player_view.py`, `scatter_view.py`, `prospects_view.py` y `explorer_view.py`.
+     * `dashboard/app.py`: Orquestador de apenas 90 líneas enfocado exclusivamente en navegación y diseño general.
+  2. **Especialización para Guardametas:** Detección de `position_id == 1` para evaluar automáticamente métricas específicas: Atajadas Totales (`saves_total`), Minutos, Pases Precisos y % de Precisión, contrastados contra el universo de arqueros de Primera División.
+  3. **Rankings Directos por Métrica:** Cálculo dinámico del puesto relativo del jugador frente a sus pares posicionales (ej. `+1.8 vs media (1.2) | Puesto #3° de 68 delanteros`).
+  4. **Dumbbell Plots Aislados:** Cada dimensión técnica cuenta con su propio gráfico horizontal de mancuerna, adaptando el eje X al rango natural de la métrica y eliminando distorsiones.
+* **Lección / Buena Práctica:** Modularizar las interfaces complejas de Streamlit por vistas y componentes desacoplados. La especialización posicional de métricas es indispensable en analítica deportiva: ninguna métrica genérica sirve si no respeta el rol funcional del deportista.
+* **Próximos Pasos:** Avanzar hacia la Fase 2 del proyecto (ingesta de `teamsStats.json` y desarrollo del motor de similitud de futbolistas Per 90).
