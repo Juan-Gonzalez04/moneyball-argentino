@@ -5,16 +5,37 @@ Punto de entrada y orquestador modular del Dashboard de Moneyball Argentino.
 Coordina la barra lateral de filtros, el encabezado y el enrutamiento a vistas modularizadas.
 """
 
+import sys
+from pathlib import Path
+
+# Garantizar resolución de paquetes tanto en Docker como en ejecución local o desde subcarpetas
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+DASHBOARD_DIR = Path(__file__).resolve().parent
+if str(DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(DASHBOARD_DIR))
+
 import streamlit as st
 import pandas as pd
 
-from dashboard.data import load_all_data, POSITION_MAP
-from dashboard.views.teams_view import render_teams_view
-from dashboard.views.leaders_view import render_leaders_view
-from dashboard.views.player_view import render_player_view
-from dashboard.views.scatter_view import render_scatter_view
-from dashboard.views.prospects_view import render_prospects_view
-from dashboard.views.explorer_view import render_explorer_view
+try:
+    from dashboard.data import load_all_data, POSITION_MAP
+    from dashboard.views.teams_view import render_teams_view
+    from dashboard.views.leaders_view import render_leaders_view
+    from dashboard.views.player_view import render_player_view
+    from dashboard.views.scatter_view import render_scatter_view
+    from dashboard.views.prospects_view import render_prospects_view
+    from dashboard.views.explorer_view import render_explorer_view
+except ModuleNotFoundError:
+    from data import load_all_data, POSITION_MAP
+    from views.teams_view import render_teams_view
+    from views.leaders_view import render_leaders_view
+    from views.player_view import render_player_view
+    from views.scatter_view import render_scatter_view
+    from views.prospects_view import render_prospects_view
+    from views.explorer_view import render_explorer_view
 
 # ==============================================================================
 # CONFIGURACIÓN DE PÁGINA (ESTILO SOBRIO & EDITORIAL)

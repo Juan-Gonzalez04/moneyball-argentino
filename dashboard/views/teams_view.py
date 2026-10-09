@@ -7,7 +7,10 @@ Inspección institucional de cada club frente a las medias y rankings de Primera
 
 import streamlit as st
 import pandas as pd
-from dashboard.data import get_team_logo
+try:
+    from dashboard.data import get_team_logo
+except ModuleNotFoundError:
+    from data import get_team_logo
 
 
 def render_teams_view(df_players: pd.DataFrame, df_teams: pd.DataFrame):

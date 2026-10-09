@@ -8,7 +8,10 @@ Mapas interactivos en Altair con tooltips detallados y división interpretada de
 import streamlit as st
 import pandas as pd
 import altair as alt
-from dashboard.components.charts import build_quadrant_scatter
+try:
+    from dashboard.components.charts import build_quadrant_scatter
+except ModuleNotFoundError:
+    from components.charts import build_quadrant_scatter
 
 
 def render_scatter_view(filtered_df: pd.DataFrame):

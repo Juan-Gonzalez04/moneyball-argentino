@@ -8,8 +8,12 @@ con rankings directos por métrica y Dumbbell Plots individuales por dimensión 
 
 import streamlit as st
 import pandas as pd
-from dashboard.data import get_team_logo
-from dashboard.components.charts import build_single_dumbbell
+try:
+    from dashboard.data import get_team_logo
+    from dashboard.components.charts import build_single_dumbbell
+except ModuleNotFoundError:
+    from data import get_team_logo
+    from components.charts import build_single_dumbbell
 
 
 def compute_peer_rank(peers_df: pd.DataFrame, col: str, val: float, ascending: bool = False) -> int:
