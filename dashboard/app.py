@@ -109,6 +109,12 @@ def load_all_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     tot_passes = teams_summary["passes_correct"] + teams_summary["passes_incorrect"]
     teams_summary["team_pass_accuracy"] = np.where(tot_passes > 0, (teams_summary["passes_correct"] / tot_passes * 100).round(1), 0.0)
 
+    # Posiciones relativas en el ranking de Primera División (1 a 30)
+    teams_summary["rank_goals"] = teams_summary["total_goals"].rank(ascending=False, method="min").astype(int)
+    teams_summary["rank_shots"] = teams_summary["total_shots_on_target"].rank(ascending=False, method="min").astype(int)
+    teams_summary["rank_pass_acc"] = teams_summary["team_pass_accuracy"].rank(ascending=False, method="min").astype(int)
+    teams_summary["rank_age"] = teams_summary["avg_age"].rank(ascending=True, method="min").astype(int)
+
     return df_players, teams_summary
 
 
@@ -241,7 +247,7 @@ with tab_teams:
         kpi1.metric(
             label="Edad Promedio",
             value=f"{team_row['avg_age']} años",
-            delta=f"{diff_age:+} vs media liga ({league_avg_age})",
+            delta=f"{diff_age:+} años vs media ({league_avg_age}) | #{int(team_row['rank_age'])}° más joven",
             delta_color="inverse"
         )
 
@@ -249,21 +255,21 @@ with tab_teams:
         kpi2.metric(
             label="Goles Totales",
             value=f"{team_row['total_goals']}",
-            delta=f"{diff_goals:+} vs media liga ({league_avg_goals})"
+            delta=f"{diff_goals:+} vs media ({league_avg_goals}) | Puesto #{int(team_row['rank_goals'])}°"
         )
 
         diff_shots = round(team_row["total_shots_on_target"] - league_avg_shots, 1)
         kpi3.metric(
             label="Tiros al Arco",
             value=f"{team_row['total_shots_on_target']}",
-            delta=f"{diff_shots:+} vs media liga ({league_avg_shots})"
+            delta=f"{diff_shots:+} vs media ({league_avg_shots}) | Puesto #{int(team_row['rank_shots'])}°"
         )
 
         diff_acc = round(team_row["team_pass_accuracy"] - league_avg_pass_acc, 1)
         kpi4.metric(
             label="% Precisión Pase",
             value=f"{team_row['team_pass_accuracy']}%",
-            delta=f"{diff_acc:+} vs media liga ({league_avg_pass_acc}%)"
+            delta=f"{diff_acc:+}% vs media ({league_avg_pass_acc}%) | Puesto #{int(team_row['rank_pass_acc'])}°"
         )
 
     st.divider()
@@ -329,7 +335,7 @@ with tab_leaders:
     r_col3, r_col4 = st.columns(2)
 
     with r_col3:
-        st.markdown("#### Mayor Kilometraje (Minutos en Cancha)")
+        st.markdown("#### Mayor Rodaje (Minutos en Cancha)")
         top_minutes = df_players.sort_values(by="minutes_played", ascending=False).head(10)[
             ["player_name", "team_name", "position", "age", "minutes_played", "steals", "pass_accuracy_pct"]
         ].rename(columns={
@@ -430,26 +436,131 @@ with tab_player_profile:
     )
 
     st.divider()
-    st.markdown("##### Comparativa Visual de Rendimiento")
+    st.markdown("##### Comparativa Visual: Perfil del Jugador vs. Media Posicional (Dumbbell Plot)")
+    st.caption(
+        f"Barra horizontal por dimensión técnica: el círculo azul oscuro representa el valor de **{p['player_name']}**, "
+        f"mientras que el círculo gris representa la **Media de {p_pos_name}s** en la competición."
+    )
 
-    comp_data = pd.DataFrame([
-        {"Métrica": "Goles", "Jugador": float(p["goals"]), "Media Posición": pos_avg_goals},
-        {"Métrica": "Tiros al Arco", "Jugador": float(p["shots_on_target"]), "Media Posición": pos_avg_shots},
-        {"Métrica": "Recuperaciones", "Jugador": float(p["steals"]), "Media Posición": pos_avg_steals},
-        {"Métrica": "Pases Precisos (/10)", "Jugador": round(float(p["passes_correct"]) / 10, 1), "Media Posición": round(pos_avg_passes / 10, 1)},
+    pos_avg_assists = round(pos_peers["assists"].mean(), 1)
+
+    # 1. Acciones Directas de Juego
+    dumbbell_actions = pd.DataFrame([
+        {
+            "Métrica": "Goles",
+            "Jugador": float(p["goals"]),
+            "Media": pos_avg_goals,
+            "min_val": min(float(p["goals"]), pos_avg_goals),
+            "max_val": max(float(p["goals"]), pos_avg_goals)
+        },
+        {
+            "Métrica": "Tiros al Arco",
+            "Jugador": float(p["shots_on_target"]),
+            "Media": pos_avg_shots,
+            "min_val": min(float(p["shots_on_target"]), pos_avg_shots),
+            "max_val": max(float(p["shots_on_target"]), pos_avg_shots)
+        },
+        {
+            "Métrica": "Asistencias",
+            "Jugador": float(p["assists"]),
+            "Media": pos_avg_assists,
+            "min_val": min(float(p["assists"]), pos_avg_assists),
+            "max_val": max(float(p["assists"]), pos_avg_assists)
+        },
+        {
+            "Métrica": "Recuperaciones",
+            "Jugador": float(p["steals"]),
+            "Media": pos_avg_steals,
+            "min_val": min(float(p["steals"]), pos_avg_steals),
+            "max_val": max(float(p["steals"]), pos_avg_steals)
+        },
     ])
 
-    comp_melted = comp_data.melt(id_vars=["Métrica"], value_vars=["Jugador", "Media Posición"], var_name="Referencia", value_name="Valor")
+    lines_act = alt.Chart(dumbbell_actions).mark_rule(color="#cbd5e1", strokeWidth=3).encode(
+        y=alt.Y("Métrica:N", title=None, sort=None),
+        x=alt.X("min_val:Q", title="Cantidad Registrada"),
+        x2="max_val:Q"
+    )
 
-    bar_comp = alt.Chart(comp_melted).mark_bar().encode(
-        x=alt.X("Métrica:N", title="Métrica Analizada", axis=alt.Axis(labelAngle=0)),
-        y=alt.Y("Valor:Q", title="Valor Absoluto"),
-        color=alt.Color("Referencia:N", scale=alt.Scale(domain=["Jugador", "Media Posición"], range=["#1f77b4", "#aec7e8"])),
-        xOffset="Referencia:N",
-        tooltip=["Métrica", "Referencia", "Valor"]
-    ).properties(height=320)
+    pts_player_act = alt.Chart(dumbbell_actions).mark_circle(size=180, color="#1e40af").encode(
+        y=alt.Y("Métrica:N", sort=None),
+        x=alt.X("Jugador:Q"),
+        tooltip=[
+            alt.Tooltip("Métrica:N", title="Dimensión"),
+            alt.Tooltip("Jugador:Q", title=f"Valor de {p['player_name']}"),
+            alt.Tooltip("Media:Q", title=f"Media {p_pos_name}s")
+        ]
+    )
 
-    st.altair_chart(bar_comp, use_container_width=True)
+    pts_media_act = alt.Chart(dumbbell_actions).mark_circle(size=180, color="#94a3b8").encode(
+        y=alt.Y("Métrica:N", sort=None),
+        x=alt.X("Media:Q"),
+        tooltip=[
+            alt.Tooltip("Métrica:N", title="Dimensión"),
+            alt.Tooltip("Media:Q", title=f"Media {p_pos_name}s"),
+            alt.Tooltip("Jugador:Q", title=f"Valor de {p['player_name']}")
+        ]
+    )
+
+    chart_actions = (lines_act + pts_media_act + pts_player_act).properties(
+        title="Acciones Directas de Juego (Volumen)",
+        height=220
+    )
+
+    # 2. Seguridad Asociativa y Precisión
+    dumbbell_passing = pd.DataFrame([
+        {
+            "Métrica": "% Precisión Pase",
+            "Jugador": float(p["pass_accuracy_pct"]),
+            "Media": pos_avg_acc,
+            "min_val": min(float(p["pass_accuracy_pct"]), pos_avg_acc),
+            "max_val": max(float(p["pass_accuracy_pct"]), pos_avg_acc)
+        },
+        {
+            "Métrica": "Pases Precisos (/10)",
+            "Jugador": round(float(p["passes_correct"]) / 10, 1),
+            "Media": round(pos_avg_passes / 10, 1),
+            "min_val": min(round(float(p["passes_correct"]) / 10, 1), round(pos_avg_passes / 10, 1)),
+            "max_val": max(round(float(p["passes_correct"]) / 10, 1), round(pos_avg_passes / 10, 1))
+        }
+    ])
+
+    lines_pass = alt.Chart(dumbbell_passing).mark_rule(color="#cbd5e1", strokeWidth=3).encode(
+        y=alt.Y("Métrica:N", title=None, sort=None),
+        x=alt.X("min_val:Q", title="Escala (% y Pases / 10)"),
+        x2="max_val:Q"
+    )
+
+    pts_player_pass = alt.Chart(dumbbell_passing).mark_circle(size=180, color="#1e40af").encode(
+        y=alt.Y("Métrica:N", sort=None),
+        x=alt.X("Jugador:Q"),
+        tooltip=[
+            alt.Tooltip("Métrica:N", title="Dimensión"),
+            alt.Tooltip("Jugador:Q", title=f"Valor de {p['player_name']}"),
+            alt.Tooltip("Media:Q", title=f"Media {p_pos_name}s")
+        ]
+    )
+
+    pts_media_pass = alt.Chart(dumbbell_passing).mark_circle(size=180, color="#94a3b8").encode(
+        y=alt.Y("Métrica:N", sort=None),
+        x=alt.X("Media:Q"),
+        tooltip=[
+            alt.Tooltip("Métrica:N", title="Dimensión"),
+            alt.Tooltip("Media:Q", title=f"Media {p_pos_name}s"),
+            alt.Tooltip("Jugador:Q", title=f"Valor de {p['player_name']}")
+        ]
+    )
+
+    chart_passing = (lines_pass + pts_media_pass + pts_player_pass).properties(
+        title="Seguridad Asociativa y Precisión",
+        height=160
+    )
+
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        st.altair_chart(chart_actions, use_container_width=True)
+    with col_g2:
+        st.altair_chart(chart_passing, use_container_width=True)
 
 # ------------------------------------------------------------------------------
 # PESTAÑA 4: DISPERSIÓN Y ANÁLISIS TÁCTICO (CON INTERPRETACIÓN DE CUADRANTES)
