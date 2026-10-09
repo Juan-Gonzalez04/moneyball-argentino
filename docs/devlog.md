@@ -131,4 +131,22 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
   5. Actualicé `Dockerfile` y `docker-compose.yml` montando el volumen `./dashboard:/app/dashboard` y redirigiendo el comando de arranque a `dashboard/app.py`.
   6. Verificación empírica: el servicio `afa-streamlit` responde con HTTP 200 en `http://localhost:8501`, cargando los 790 futbolistas y los 30 clubes con sus respectivos escudos.
 * **Lección / Buena Práctica:** Separar la lógica pesada de agregación delegándola al motor de base de datos y utilizar almacenamiento en caché en memoria con TTL para brindar interactividad instantánea al usuario sin degradar la infraestructura.
-* **Próximos Pasos:** Evaluación de Fase 2 (incorporación de métricas a nivel de equipo vía `teamsStats.json` o clustering/percentiles avanzados de jugadores).
+* **Próximos Pasos:** Refinar la interfaz hacia un estilo editorial sobrio, incorporando comparativas contra medias de liga/posición y mapas de dispersión con interpretación táctica.
+
+---
+
+### [2026-10-08] - Refinamiento Editorial del Dashboard: Comparativas Contextuales y Gráficos Interpretados
+* **Fase / Módulo:** Fase 4 / Presentación & Analítica Táctica
+* **Objetivo de la sesión:** Refactorizar integralmente `dashboard/app.py` para erradicar el ruido visual (emojis, metadatos de infraestructura/hardware), establecer un estilo sobrio y profesional, e incorporar analítica contextual: comparativas de clubes frente a la media de la liga, fichas individuales frente al promedio de su posición y diagramas de dispersión con interpretación explícita de cuadrantes.
+* **Desafío / Análisis Crítico:**
+  1. Los datos absolutos aislados (ej. "450 pases" o "12 tiros") carecen de valor de scouting si no se contrastan contra una referencia relativa (media de la liga para clubes o media posicional para jugadores).
+  2. Los gráficos estándar sin identificación de puntos impedían reconocer a los futbolistas en los extremos de la distribución.
+* **Solución Aplicada:**
+  1. **Higiene Visual:** Eliminé emojis, referencias a configuraciones de servidor (*Argos*, RAM) y enlaces internos, adoptando un diseño periodístico/editorial limpio con pie de página institucional.
+  2. **Pestaña Institucional (Club vs. Media de Liga):** Cada club seleccionado contrasta su edad promedio, goles, tiros al arco y precisión de pase frente al promedio de los 30 clubes de Primera División mediante indicadores de diferencia (*deltas*).
+  3. **Ficha de Futbolista (Jugador vs. Media Posicional):** Inspección individual de cualquier jugador con métricas comparadas lado a lado frente a todos los colegas de su misma posición, incluyendo un gráfico de barras comparativo.
+  4. **Líderes de Rendimiento:** Tablas directas con los mejores goleadores, mejores pasadores (con umbral de volumen), jugadores con más minutos y recuperadores defensivos.
+  5. **Dispersión Táctica en Altair:** Gráficos interactivos con tooltips que revelan nombre, club, posición y métricas exactas al pasar el cursor, complementados con líneas de corte en las medias y un desglose pedagógico de los 4 cuadrantes tácticos.
+  6. **Panel de Prospectos Sub-23 & Explorador CSV:** Muestra filtrada de promesas con nota metodológica sobre la necesidad de acumulación temporal para futuras proyecciones, más exportación tabular a CSV.
+* **Lección / Buena Práctica:** El valor del dato en analítica deportiva radica en su contexto relativo. Comparar contra la media del rol o de la competición y explicar claramente los cuadrantes de una distribución transforma un simple gráfico en una herramienta de toma de decisiones.
+* **Próximos Pasos:** Diseñar las bases para la Fase 2: métricas colectivas avanzadas (`teamsStats.json`) y modelado de ratios Per 90 minutos para el motor de similitud de futbolistas (*Cosine Similarity*).
