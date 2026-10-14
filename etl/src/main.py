@@ -107,7 +107,7 @@ def main():
     # FASE 3: TRANSFORM (Normalización Relacional)
     # --------------------------------------------------------------------------
     logger.info("[FASE 3/4] Ejecutando Transformación y Casteo de Tipos...")
-    transformed = transform_dataset(dataset, season_year=2026)
+    transformed = transform_dataset(dataset)
 
     # --------------------------------------------------------------------------
     # FASE 4: LOAD (Idempotent Upsert en PostgreSQL)
