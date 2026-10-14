@@ -14,9 +14,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código
+COPY etl/ etl/
 COPY scripts/ scripts/
 COPY sql/ sql/
-# COPY config/ config/
+COPY dashboard/ dashboard/
+
+ENV PYTHONPATH=/app
 
 # Por defecto, no hacer nada (override con docker-compose)
 CMD ["bash"] 
