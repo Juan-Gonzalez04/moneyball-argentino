@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS players (
 -- Desglose minucioso de anotaciones por jugador y temporada
 CREATE TABLE IF NOT EXISTS player_goals (
     player_id INT REFERENCES players(player_id) ON DELETE CASCADE,
-    season_year INT DEFAULT 2026,
+    season_year INT NOT NULL,
     total_goals INT DEFAULT 0,
     played_goals INT DEFAULT 0,
     first_time_goals INT DEFAULT 0,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS player_goals (
 -- Minutos jugados, tiros, pases, recuperaciones y disciplina
 CREATE TABLE IF NOT EXISTS player_stats (
     player_id INT REFERENCES players(player_id) ON DELETE CASCADE,
-    season_year INT DEFAULT 2026,
+    season_year INT NOT NULL,
     minutes_total INT DEFAULT 0,
     minutes_holds INT DEFAULT 0,
     minutes_substitute INT DEFAULT 0,

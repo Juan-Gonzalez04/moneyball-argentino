@@ -14,6 +14,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, NamedTuple, Optional
 import json
 import logging
+import os
 
 from etl.src.schemas import ValidatedDataset
 
@@ -38,11 +39,37 @@ def parse_date(date_str: Optional[str]) -> Optional[date]:
         return None
 
 
-def transform_dataset(dataset: ValidatedDataset, season_year: int = 2026) -> TransformedDataset:
+def resolve_season_year(dataset: ValidatedDataset, explicit_year: Optional[int] = None) -> int:
+    """
+    Resuelve dinámicamente el año de la temporada en cascada:
+    1. Valor explícito pasado por parámetro (si existe).
+    2. Variable de entorno SEASON_YEAR (si está configurada).
+    3. Primeros 4 dígitos del campo 'competitionStart' del payload crudo (ej: '20260723' -> 2026).
+    4. Año actual del sistema como fallback seguro.
+    """
+    if explicit_year is not None:
+        return explicit_year
+
+    env_season = os.getenv("SEASON_YEAR")
+    if env_season and env_season.strip().isdigit():
+        return int(env_season.strip())
+
+    comp_start = dataset.raw_payloads.get("competitionStart")
+    if comp_start:
+        comp_start_str = str(comp_start).strip()
+        if len(comp_start_str) >= 4 and comp_start_str[:4].isdigit():
+            return int(comp_start_str[:4])
+
+    return datetime.now().year
+
+
+def transform_dataset(dataset: ValidatedDataset, season_year: Optional[int] = None) -> TransformedDataset:
     """
     Transforma el dataset validado a colecciones planas alineadas con el esquema de PostgreSQL.
+    Si season_year no se especifica, se infiere dinámicamente desde los metadatos de la competencia.
     """
-    logger.info("Iniciando transformación de datos para la temporada %d...", season_year)
+    effective_season_year = resolve_season_year(dataset, season_year)
+    logger.info("Iniciando transformación de datos para la temporada %d...", effective_season_year)
     raw_payloads = dataset.raw_payloads
     raw_teams_map = raw_payloads.get("teams", {})
     raw_players_map = raw_payloads.get("players", {})
@@ -124,7 +151,7 @@ def transform_dataset(dataset: ValidatedDataset, season_year: int = 2026) -> Tra
             raw_goals_data = raw_payloads.get("goals", {}).get(str(player_id), {})
             transformed_goals.append({
                 "player_id": player_id,
-                "season_year": season_year,
+                "season_year": effective_season_year,
                 "total_goals": total_goals,
                 "played_goals": goals_contract.playedGoals or 0,
                 "first_time_goals": goals_contract.first_time or 0,
@@ -138,7 +165,7 @@ def transform_dataset(dataset: ValidatedDataset, season_year: int = 2026) -> Tra
             # Si el jugador no figura en goles, registramos fila en cero para integridad
             transformed_goals.append({
                 "player_id": player_id,
-                "season_year": season_year,
+                "season_year": effective_season_year,
                 "total_goals": 0,
                 "played_goals": 0,
                 "first_time_goals": 0,
@@ -185,7 +212,7 @@ def transform_dataset(dataset: ValidatedDataset, season_year: int = 2026) -> Tra
 
         transformed_stats.append({
             "player_id": player_id,
-            "season_year": season_year,
+            "season_year": effective_season_year,
             "minutes_total": min_contract.total if min_contract else 0,
             "minutes_holds": min_contract.holds if min_contract else 0,
             "minutes_substitute": min_contract.substitute if min_contract else 0,
