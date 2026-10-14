@@ -1,6 +1,17 @@
-requests==2.31.0
-psycopg2-binary==2.9.9
-pandas==2.1.4
-sqlalchemy==2.0.23
-streamlit==1.30.0
-python-dotenv==1.0.0
+# HTTP Client & APIs
+httpx>=0.27.0
+requests>=2.31.0
+
+# Data Contracts & Schemas
+pydantic>=2.6.0
+
+# Database & Processing
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.23
+pandas>=2.1.4
+
+# Dashboard
+streamlit>=1.30.0
+
+# Environment & Utils
+python-dotenv>=1.0.0
