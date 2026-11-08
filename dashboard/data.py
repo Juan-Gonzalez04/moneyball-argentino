@@ -80,40 +80,66 @@ def load_all_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     LEFT JOIN player_goals g ON p.player_id = g.player_id
     ORDER BY s.minutes_total DESC;
     """
+
+    teams_stats_query = """
+    SELECT 
+        t.team_id,
+        t.name AS team_name,
+        COALESCE(ts.matches_played, 0) AS matches_played,
+        COALESCE(ts.matches_won, 0) AS matches_won,
+        COALESCE(ts.matches_drawn, 0) AS matches_drawn,
+        COALESCE(ts.matches_lost, 0) AS matches_lost,
+        COALESCE(ts.points, 0) AS points,
+        COALESCE(ts.goals_for, 0) AS total_goals,
+        COALESCE(ts.shots_on_target, 0) AS total_shots_on_target,
+        COALESCE(ts.pass_accuracy_pct, 0.0) AS team_pass_accuracy,
+        COALESCE(ts.steals_total, 0) AS total_steals,
+        COALESCE(ts.fouls_committed, 0) AS fouls_committed,
+        COALESCE(ts.yellow_cards, 0) AS yellow_cards,
+        COALESCE(ts.red_cards, 0) AS red_cards
+    FROM teams t
+    LEFT JOIN (
+        SELECT DISTINCT ON (team_id) *
+        FROM team_stats
+        ORDER BY team_id, season_year DESC
+    ) ts ON t.team_id = ts.team_id;
+    """
     
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(players_query)
             df_players = pd.DataFrame(cur.fetchall())
+            cur.execute(teams_stats_query)
+            df_teams_official = pd.DataFrame(cur.fetchall())
             
     if not df_players.empty:
         df_players["position"] = df_players["position_id"].map(POSITION_MAP).fillna("Sin posición")
         df_players["pass_accuracy_pct"] = pd.to_numeric(df_players["pass_accuracy_pct"], errors="coerce").fillna(0.0)
         df_players["is_u23"] = df_players["age"] <= 23
 
-    # Agregación institucional de clubes
-    teams_summary = df_players.groupby(["team_id", "team_name"]).agg(
+    # Resumen demográfico de planteles
+    squad_summary = df_players.groupby("team_id").agg(
         squad_size=("player_id", "count"),
         avg_age=("age", "mean"),
         total_minutes=("minutes_played", "sum"),
-        total_goals=("goals", "sum"),
-        total_shots_on_target=("shots_on_target", "sum"),
-        total_steals=("steals", "sum"),
-        total_saves=("saves_total", "sum"),
-        passes_correct=("passes_correct", "sum"),
-        passes_incorrect=("passes_incorrect", "sum"),
-        u23_count=("is_u23", "sum")
+        u23_count=("is_u23", "sum"),
     ).reset_index()
+    squad_summary["avg_age"] = squad_summary["avg_age"].round(1)
 
-    teams_summary["avg_age"] = teams_summary["avg_age"].round(1)
-    tot_passes = teams_summary["passes_correct"] + teams_summary["passes_incorrect"]
-    teams_summary["team_pass_accuracy"] = np.where(tot_passes > 0, (teams_summary["passes_correct"] / tot_passes * 100).round(1), 0.0)
+    # Merge de estadísticas oficiales del club con métricas demográficas
+    teams_summary = pd.merge(df_teams_official, squad_summary, on="team_id", how="left")
+    teams_summary["squad_size"] = teams_summary["squad_size"].fillna(0).astype(int)
+    teams_summary["avg_age"] = teams_summary["avg_age"].fillna(0.0)
+    teams_summary["total_minutes"] = teams_summary["total_minutes"].fillna(0).astype(int)
+    teams_summary["u23_count"] = teams_summary["u23_count"].fillna(0).astype(int)
+    teams_summary["team_pass_accuracy"] = pd.to_numeric(teams_summary["team_pass_accuracy"], errors="coerce").fillna(0.0).round(1)
 
     # Posiciones relativas en el ranking de Primera División (1 a 30)
     teams_summary["rank_goals"] = teams_summary["total_goals"].rank(ascending=False, method="min").astype(int)
     teams_summary["rank_shots"] = teams_summary["total_shots_on_target"].rank(ascending=False, method="min").astype(int)
     teams_summary["rank_pass_acc"] = teams_summary["team_pass_accuracy"].rank(ascending=False, method="min").astype(int)
     teams_summary["rank_age"] = teams_summary["avg_age"].rank(ascending=True, method="min").astype(int)
+    teams_summary["rank_points"] = teams_summary["points"].rank(ascending=False, method="min").astype(int)
 
     return df_players, teams_summary
 

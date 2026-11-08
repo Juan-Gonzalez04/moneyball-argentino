@@ -39,7 +39,12 @@ def render_teams_view(df_players: pd.DataFrame, df_teams: pd.DataFrame):
 
     with c_info:
         st.markdown(f"### {team_row['team_name']}")
-        st.write(f"Plantel registrado: **{team_row['squad_size']} futbolistas** | Minutos acumulados: **{team_row['total_minutes']}**")
+        pts = int(team_row.get("points", 0))
+        pj = int(team_row.get("matches_played", 0))
+        pg = int(team_row.get("matches_won", 0))
+        pe = int(team_row.get("matches_drawn", 0))
+        pp = int(team_row.get("matches_lost", 0))
+        st.write(f"Rendimiento Oficial: **{pts} Puntos** (PJ: {pj} | PG: {pg} | PE: {pe} | PP: {pp}) | Plantel: **{team_row['squad_size']} futbolistas**")
 
         st.markdown("##### Métricas Colectivas vs. Promedio de la Liga")
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
