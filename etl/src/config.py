@@ -35,6 +35,7 @@ LOGS_DIR: Path = _resolve_dir("LOGS_DIR", "/app/logs", PROJECT_ROOT / "logs")
 # 2. Configuración de Extracción HTTP (Proveedor de Datos)
 # --------------------------------------------------------------------------
 AFA_PLAYERS_STATS_URL: str = os.getenv("AFA_PLAYERS_STATS_URL", "").strip()
+AFA_TEAMS_STATS_URL: str = os.getenv("AFA_TEAMS_STATS_URL", "").strip()
 
 HTTP_TIMEOUT_SECONDS: float = float(os.getenv("HTTP_TIMEOUT_SECONDS", "30.0"))
 HTTP_USER_AGENT: str = os.getenv(

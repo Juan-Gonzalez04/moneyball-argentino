@@ -19,6 +19,7 @@ import httpx
 
 from etl.src.config import (
     AFA_PLAYERS_STATS_URL,
+    AFA_TEAMS_STATS_URL,
     HTTP_TIMEOUT_SECONDS,
     HTTP_USER_AGENT,
     RAW_DATA_DIR,
@@ -47,32 +48,31 @@ def calculate_sha256(content_bytes: bytes) -> str:
     return hasher.hexdigest()
 
 
-def fetch_players_stats_full(
-    url: str = AFA_PLAYERS_STATS_URL,
+def fetch_afa_endpoint(
+    url: str,
+    file_prefix: str,
+    env_var_name: str,
     save_raw: bool = True,
 ) -> ExtractionResult:
     """
-    Ejecuta la descarga del endpoint de AFA, valida la respuesta y persiste el snapshot inmutable.
-    
-    Raises:
-        httpx.HTTPError: Si la petición falla por timeout, DNS o status code != 200.
-        json.JSONDecodeError: Si la respuesta no es un JSON válido.
+    Descarga genérica y resiliente para endpoints de estadísticas de AFA.
+    Valida la respuesta HTTP, computa el hash SHA-256 y persiste el snapshot Bronze inmutable.
     """
     now_utc = datetime.now(timezone.utc)
     timestamp_str = now_utc.strftime("%Y%m%dT%H%M%SZ")
-    
+
     if not url:
         raise ValueError(
-            "La URL del endpoint de estadísticas no está configurada. "
-            "Por favor, configure AFA_PLAYERS_STATS_URL en su archivo .env"
+            f"La URL del endpoint no está configurada. "
+            f"Por favor, configure {env_var_name} en su archivo .env"
         )
 
-    logger.info("Iniciando extracción desde endpoint: %s", url)
+    logger.info("Iniciando extracción desde endpoint (%s): %s", file_prefix, url)
     headers = {
         "User-Agent": HTTP_USER_AGENT,
         "Accept": "application/json",
     }
-    
+
     with httpx.Client(timeout=HTTP_TIMEOUT_SECONDS, follow_redirects=True) as client:
         response = client.get(url, headers=headers)
         response.raise_for_status()
@@ -81,7 +81,8 @@ def fetch_players_stats_full(
     bytes_count = len(raw_bytes)
     sha256_hash = calculate_sha256(raw_bytes)
     logger.info(
-        "Descarga exitosa: %d bytes recibidos | SHA-256: %s",
+        "Descarga exitosa (%s): %d bytes recibidos | SHA-256: %s",
+        file_prefix,
         bytes_count,
         sha256_hash,
     )
@@ -89,7 +90,7 @@ def fetch_players_stats_full(
     # Validar que sea un JSON válido antes de guardarlo
     payload = json.loads(raw_bytes.decode("utf-8"))
 
-    raw_file_path = RAW_DATA_DIR / f"playersStatsFull_{timestamp_str}.json"
+    raw_file_path = RAW_DATA_DIR / f"{file_prefix}_{timestamp_str}.json"
     if save_raw:
         with open(raw_file_path, "wb") as f:
             f.write(raw_bytes)
@@ -104,15 +105,46 @@ def fetch_players_stats_full(
     )
 
 
+def fetch_players_stats_full(
+    url: str = AFA_PLAYERS_STATS_URL,
+    save_raw: bool = True,
+) -> ExtractionResult:
+    """Ejecuta la descarga del endpoint de estadísticas individuales de futbolistas."""
+    return fetch_afa_endpoint(
+        url=url,
+        file_prefix="playersStatsFull",
+        env_var_name="AFA_PLAYERS_STATS_URL",
+        save_raw=save_raw,
+    )
+
+
+def fetch_teams_stats_full(
+    url: str = AFA_TEAMS_STATS_URL,
+    save_raw: bool = True,
+) -> ExtractionResult:
+    """Ejecuta la descarga del endpoint de estadísticas colectivas de clubes."""
+    return fetch_afa_endpoint(
+        url=url,
+        file_prefix="teamsStats",
+        env_var_name="AFA_TEAMS_STATS_URL",
+        save_raw=save_raw,
+    )
+
+
 if __name__ == "__main__":
     try:
-        result = fetch_players_stats_full()
-        print(f"\n[OK] Extracción finalizada con éxito:")
-        print(f" - Archivo: {result.raw_file_path}")
-        print(f" - SHA-256: {result.sha256_hash}")
-        print(f" - Tamaño:  {result.bytes_count / 1024:.2f} KB")
-        print(f" - Jugadores en payload: {len(result.payload.get('players', {}))}")
-        print(f" - Equipos en payload:   {len(result.payload.get('teams', {}))}")
+        p_res = fetch_players_stats_full()
+        print(f"\n[OK] Extracción de futbolistas finalizada con éxito:")
+        print(f" - Archivo: {p_res.raw_file_path.name}")
+        print(f" - SHA-256: {p_res.sha256_hash}")
+        print(f" - Tamaño:  {p_res.bytes_count / 1024:.2f} KB")
+
+        t_res = fetch_teams_stats_full()
+        print(f"\n[OK] Extracción de equipos finalizada con éxito:")
+        print(f" - Archivo: {t_res.raw_file_path.name}")
+        print(f" - SHA-256: {t_res.sha256_hash}")
+        print(f" - Tamaño:  {t_res.bytes_count / 1024:.2f} KB")
+        print(f" - Clubes en payload: {len(t_res.payload.get('teams', {}))}")
     except Exception as exc:
         logger.error("Fallo crítico en la extracción: %s", exc, exc_info=True)
         raise SystemExit(1)
