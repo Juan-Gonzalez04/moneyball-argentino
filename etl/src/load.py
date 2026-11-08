@@ -34,6 +34,9 @@ class LoadSummary(NamedTuple):
     players_upserted: int
     goals_upserted: int
     stats_upserted: int
+    team_stats_upserted: int
+    new_teams_count: int
+    new_players_count: int
     success: bool
 
 
@@ -58,6 +61,39 @@ def load_dataset_to_postgres(dataset: TransformedDataset) -> LoadSummary:
     try:
         with conn:
             with conn.cursor() as cur:
+                # --------------------------------------------------------------
+                # 0. Auditoría de Altas (Change Data Capture previo)
+                # --------------------------------------------------------------
+                cur.execute("SELECT team_id FROM teams;")
+                existing_team_ids = {r[0] for r in cur.fetchall()}
+                new_teams = [t for t in dataset.teams if t["team_id"] not in existing_team_ids]
+
+                if new_teams:
+                    logger.info("🆕 Se detectaron %d CLUBES NUEVOS para incorporar:", len(new_teams))
+                    for nt in new_teams:
+                        logger.info("  * [ID: %s] %s (%s)", nt["team_id"], nt["name"], nt.get("short_name") or "-")
+                else:
+                    logger.info("Auditoría de clubes: 0 clubes nuevos (todos los clubes ya existían en BD).")
+
+                cur.execute("SELECT player_id FROM players;")
+                existing_player_ids = {r[0] for r in cur.fetchall()}
+                new_players = [p for p in dataset.players if p["player_id"] not in existing_player_ids]
+
+                if new_players:
+                    logger.info("🆕 Se detectaron %d FUTBOLISTAS NUEVOS para incorporar:", len(new_players))
+                    for np in new_players:
+                        p_name = np.get("nick_name") or f"{np.get('first_name', '')} {np.get('last_name', '')}".strip()
+                        logger.info(
+                            "  * [ID: %s] %s (Club: %s | Dorsal: %s | Edad: %s)",
+                            np["player_id"],
+                            p_name,
+                            np.get("current_team_name") or "-",
+                            np.get("squad_no") or "-",
+                            np.get("age") or "-",
+                        )
+                else:
+                    logger.info("Auditoría de futbolistas: 0 futbolistas nuevos (planteles existentes actualizados).")
+
                 # --------------------------------------------------------------
                 # 1. Cargar Equipos (teams)
                 # --------------------------------------------------------------
@@ -239,11 +275,122 @@ def load_dataset_to_postgres(dataset: TransformedDataset) -> LoadSummary:
             players_upserted=len(dataset.players),
             goals_upserted=len(dataset.player_goals),
             stats_upserted=len(dataset.player_stats),
+            team_stats_upserted=0,
+            new_teams_count=len(new_teams),
+            new_players_count=len(new_players),
             success=True,
         )
 
     except Exception as exc:
         logger.error("Error durante la carga a PostgreSQL (ROLLBACK automático): %s", exc, exc_info=True)
+        raise
+    finally:
+        conn.close()
+
+
+def load_team_stats_to_postgres(team_stats_rows: List[Dict[str, Any]]) -> int:
+    """
+    Ejecuta el Upsert masivo de estadísticas oficiales de clubes en la tabla team_stats.
+    Garantiza idempotencia estricta mediante ON CONFLICT (team_id, season_year) DO UPDATE.
+    """
+    if not team_stats_rows:
+        logger.info("No hay estadísticas de clubes para cargar.")
+        return 0
+
+    logger.info("Iniciando carga idempotente de estadísticas de %d clubes en team_stats...", len(team_stats_rows))
+    query = """
+    INSERT INTO team_stats (
+        team_id, season_year, matches_played, matches_won, matches_drawn,
+        matches_lost, points, goals_for, goals_first_half, goals_second_half,
+        goals_head, goals_penalty, goals_freekick, goals_own, shots_total,
+        shots_on_target, shots_off_target, shots_woodwork, conversion_rate_pct,
+        passes_correct, passes_incorrect, passes_total, pass_accuracy_pct,
+        fouls_committed, fouls_received, yellow_cards, double_yellow_cards,
+        red_cards, steals_total, corner_kicks, offsides, goal_assistances,
+        raw_payload
+    ) VALUES %s
+    ON CONFLICT (team_id, season_year) DO UPDATE SET
+        matches_played = EXCLUDED.matches_played,
+        matches_won = EXCLUDED.matches_won,
+        matches_drawn = EXCLUDED.matches_drawn,
+        matches_lost = EXCLUDED.matches_lost,
+        points = EXCLUDED.points,
+        goals_for = EXCLUDED.goals_for,
+        goals_first_half = EXCLUDED.goals_first_half,
+        goals_second_half = EXCLUDED.goals_second_half,
+        goals_head = EXCLUDED.goals_head,
+        goals_penalty = EXCLUDED.goals_penalty,
+        goals_freekick = EXCLUDED.goals_freekick,
+        goals_own = EXCLUDED.goals_own,
+        shots_total = EXCLUDED.shots_total,
+        shots_on_target = EXCLUDED.shots_on_target,
+        shots_off_target = EXCLUDED.shots_off_target,
+        shots_woodwork = EXCLUDED.shots_woodwork,
+        conversion_rate_pct = EXCLUDED.conversion_rate_pct,
+        passes_correct = EXCLUDED.passes_correct,
+        passes_incorrect = EXCLUDED.passes_incorrect,
+        passes_total = EXCLUDED.passes_total,
+        pass_accuracy_pct = EXCLUDED.pass_accuracy_pct,
+        fouls_committed = EXCLUDED.fouls_committed,
+        fouls_received = EXCLUDED.fouls_received,
+        yellow_cards = EXCLUDED.yellow_cards,
+        double_yellow_cards = EXCLUDED.double_yellow_cards,
+        red_cards = EXCLUDED.red_cards,
+        steals_total = EXCLUDED.steals_total,
+        corner_kicks = EXCLUDED.corner_kicks,
+        offsides = EXCLUDED.offsides,
+        goal_assistances = EXCLUDED.goal_assistances,
+        raw_payload = EXCLUDED.raw_payload,
+        updated_at = NOW();
+    """
+    tuples = [
+        (
+            r["team_id"],
+            r["season_year"],
+            r["matches_played"],
+            r["matches_won"],
+            r["matches_drawn"],
+            r["matches_lost"],
+            r["points"],
+            r["goals_for"],
+            r["goals_first_half"],
+            r["goals_second_half"],
+            r["goals_head"],
+            r["goals_penalty"],
+            r["goals_freekick"],
+            r["goals_own"],
+            r["shots_total"],
+            r["shots_on_target"],
+            r["shots_off_target"],
+            r["shots_woodwork"],
+            r["conversion_rate_pct"],
+            r["passes_correct"],
+            r["passes_incorrect"],
+            r["passes_total"],
+            r["pass_accuracy_pct"],
+            r["fouls_committed"],
+            r["fouls_received"],
+            r["yellow_cards"],
+            r["double_yellow_cards"],
+            r["red_cards"],
+            r["steals_total"],
+            r["corner_kicks"],
+            r["offsides"],
+            r["goal_assistances"],
+            r["raw_payload"],
+        )
+        for r in team_stats_rows
+    ]
+
+    conn = get_db_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                execute_values(cur, query, tuples, page_size=500)
+        logger.info("Estadísticas de clubes procesadas exitosamente: %d filas en team_stats.", len(tuples))
+        return len(tuples)
+    except Exception as exc:
+        logger.error("Error cargando team_stats a PostgreSQL (ROLLBACK automático): %s", exc, exc_info=True)
         raise
     finally:
         conn.close()

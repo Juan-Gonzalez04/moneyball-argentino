@@ -16,7 +16,7 @@ import json
 import logging
 import os
 
-from etl.src.schemas import ValidatedDataset
+from etl.src.schemas import ValidatedDataset, ValidatedTeamsDataset
 
 logger = logging.getLogger("etl.transform")
 
@@ -252,3 +252,92 @@ def transform_dataset(dataset: ValidatedDataset, season_year: Optional[int] = No
         player_goals=transformed_goals,
         player_stats=transformed_stats,
     )
+
+
+def parse_percentage(val: Optional[str]) -> float:
+    """Castea de forma segura un string con formato '72.3%' a un valor flotante 72.3."""
+    if not val or not isinstance(val, str):
+        return 0.0
+    try:
+        return float(val.replace("%", "").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def transform_teams_stats(
+    dataset: ValidatedTeamsDataset,
+    season_year: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Transforma las estadísticas de clubes validadas a filas normalizadas para la tabla team_stats.
+    """
+    effective_season_year = season_year or datetime.now().year
+    logger.info("Iniciando transformación de estadísticas de %d clubes para la temporada %d...", len(dataset.teams_stats), effective_season_year)
+
+    transformed: List[Dict[str, Any]] = []
+
+    for item in dataset.teams_stats.values():
+        m_tot = item.matches.total
+        matches_played = (m_tot.Win or 0) + (m_tot.Tied or 0) + (m_tot.Loose or 0)
+        goals_for = (item.goals.first_time or 0) + (item.goals.second_time or 0)
+        shots_tot = (item.shots.first_time or 0) + (item.shots.second_time or 0) + (item.shots.supp_time or 0)
+        passes_correct = item.passes.correct or 0
+        passes_incorrect = item.passes.incorrect or 0
+        passes_tot = passes_correct + passes_incorrect
+
+        # Fouls
+        fouls_comm = item.fouls.get("committed", {}) if isinstance(item.fouls, dict) else {}
+        fouls_rec = item.fouls.get("received", {}) if isinstance(item.fouls, dict) else {}
+        total_fouls_comm = int((fouls_comm.get("first_time", 0) or 0) + (fouls_comm.get("second_time", 0) or 0))
+        total_fouls_rec = int((fouls_rec.get("first_time", 0) or 0) + (fouls_rec.get("second_time", 0) or 0))
+
+        # Corners, offside, assists
+        corners = item.corner_kicks if isinstance(item.corner_kicks, dict) else {}
+        total_corners = int((corners.get("first_time", 0) or 0) + (corners.get("second_time", 0) or 0))
+
+        offside = item.offside if isinstance(item.offside, dict) else {}
+        total_offside = int((offside.get("first_time", 0) or 0) + (offside.get("second_time", 0) or 0))
+
+        assists = item.goal_assistances if isinstance(item.goal_assistances, dict) else {}
+        total_assists = int((assists.get("first_time", 0) or 0) + (assists.get("second_time", 0) or 0))
+
+        steals_tot = int((item.stealing.first_time or 0) + (item.stealing.second_time or 0))
+
+        transformed.append({
+            "team_id": item.team_id,
+            "season_year": effective_season_year,
+            "matches_played": matches_played,
+            "matches_won": m_tot.Win or 0,
+            "matches_drawn": m_tot.Tied or 0,
+            "matches_lost": m_tot.Loose or 0,
+            "points": m_tot.Points or 0,
+            "goals_for": goals_for,
+            "goals_first_half": item.goals.first_time or 0,
+            "goals_second_half": item.goals.second_time or 0,
+            "goals_head": item.goals.headGoal or 0,
+            "goals_penalty": item.goals.penalty or 0,
+            "goals_freekick": item.goals.freekick or 0,
+            "goals_own": item.goals.ownGoal or 0,
+            "shots_total": shots_tot,
+            "shots_on_target": item.shots.OnTarget or 0,
+            "shots_off_target": item.shots.OffTarget or 0,
+            "shots_woodwork": item.shots.OnWoodwork or 0,
+            "conversion_rate_pct": parse_percentage(item.shots.conversionRate),
+            "passes_correct": passes_correct,
+            "passes_incorrect": passes_incorrect,
+            "passes_total": passes_tot,
+            "pass_accuracy_pct": parse_percentage(item.passes.accuracy),
+            "fouls_committed": total_fouls_comm,
+            "fouls_received": total_fouls_rec,
+            "yellow_cards": item.cards.yellow or 0,
+            "double_yellow_cards": item.cards.doubleYellow or 0,
+            "red_cards": item.cards.red or 0,
+            "steals_total": steals_tot,
+            "corner_kicks": total_corners,
+            "offsides": total_offside,
+            "goal_assistances": total_assists,
+            "raw_payload": json.dumps(item.raw_payload),
+        })
+
+    logger.info("Transformación de estadísticas de clubes finalizada: %d filas normalizadas.", len(transformed))
+    return transformed

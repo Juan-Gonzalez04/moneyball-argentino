@@ -240,3 +240,178 @@ def validate_afa_payload(raw_payload: Dict[str, Any]) -> Tuple[ValidatedDataset,
     )
 
     return dataset, report
+
+
+# ------------------------------------------------------------------------------
+# 5. Contratos de Estadísticas Oficiales de Clubes (teamStats.json)
+# ------------------------------------------------------------------------------
+class TeamMatchRecordContract(StrictBaseModel):
+    Win: Optional[int] = 0
+    Tied: Optional[int] = 0
+    Loose: Optional[int] = 0
+    Points: Optional[int] = 0
+
+
+class TeamMatchesContract(StrictBaseModel):
+    total: TeamMatchRecordContract = Field(default_factory=TeamMatchRecordContract)
+    first_time: Optional[TeamMatchRecordContract] = None
+    second_time: Optional[TeamMatchRecordContract] = None
+
+
+class TeamGoalsStatsContract(StrictBaseModel):
+    first_time: Optional[int] = 0
+    second_time: Optional[int] = 0
+    playedGoals: Optional[int] = 0
+    freekick: Optional[int] = 0
+    ownGoal: Optional[int] = 0
+    headGoal: Optional[int] = 0
+    penalty: Optional[int] = 0
+
+
+class TeamShotsStatsContract(StrictBaseModel):
+    first_time: Optional[int] = 0
+    second_time: Optional[int] = 0
+    supp_time: Optional[int] = 0
+    goals: Optional[int] = 0
+    OnWoodwork: Optional[int] = 0
+    OnTarget: Optional[int] = 0
+    OffTarget: Optional[int] = 0
+    conversionRate: Optional[str] = "0.0%"
+
+
+class TeamPassesStatsContract(StrictBaseModel):
+    correct: Optional[int] = 0
+    incorrect: Optional[int] = 0
+    accuracy: Optional[str] = "0.0%"
+
+
+class TeamCardsStatsContract(StrictBaseModel):
+    yellow: Optional[int] = 0
+    doubleYellow: Optional[int] = 0
+    red: Optional[int] = 0
+
+
+class TeamStealingStatsContract(StrictBaseModel):
+    first_time: Optional[int] = 0
+    second_time: Optional[int] = 0
+    supp_time: Optional[int] = 0
+    perGame: Optional[float] = 0.0
+
+
+class ValidatedTeamStatsItem(StrictBaseModel):
+    team_id: int
+    name: str
+    short_name: Optional[str] = None
+    matches: TeamMatchesContract = Field(default_factory=TeamMatchesContract)
+    goals: TeamGoalsStatsContract = Field(default_factory=TeamGoalsStatsContract)
+    shots: TeamShotsStatsContract = Field(default_factory=TeamShotsStatsContract)
+    passes: TeamPassesStatsContract = Field(default_factory=TeamPassesStatsContract)
+    cards: TeamCardsStatsContract = Field(default_factory=TeamCardsStatsContract)
+    stealing: TeamStealingStatsContract = Field(default_factory=TeamStealingStatsContract)
+    fouls: Optional[Dict[str, Any]] = None
+    corner_kicks: Optional[Dict[str, Any]] = None
+    offside: Optional[Dict[str, Any]] = None
+    goal_assistances: Optional[Dict[str, Any]] = None
+    penalties: Optional[Dict[str, Any]] = None
+    raw_payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ValidatedTeamsDataset(BaseModel):
+    teams_stats: Dict[int, ValidatedTeamStatsItem]
+    raw_payload: Dict[str, Any]
+
+
+class TeamStatsValidationReport(BaseModel):
+    valid_count: int = 0
+    quarantined_count: int = 0
+    quarantine_errors: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+def validate_teams_stats_payload(raw_payload: Dict[str, Any]) -> Tuple[ValidatedTeamsDataset, TeamStatsValidationReport]:
+    """
+    Valida el payload de estadísticas colectivas de clubes aplicando la política de cuarentena.
+    Aísla anomalías individuales por club sin detener la validación del conjunto.
+    """
+    report = TeamStatsValidationReport()
+    valid_teams_stats: Dict[int, ValidatedTeamStatsItem] = {}
+
+    teams_map = raw_payload.get("teams", {})
+    matches_map = raw_payload.get("matches", {})
+    goals_map = raw_payload.get("goals", {})
+    shots_map = raw_payload.get("shots", {})
+    passes_map = raw_payload.get("passes", {})
+    cards_map = raw_payload.get("cards", {})
+    stealing_map = raw_payload.get("stealing", {})
+    fouls_map = raw_payload.get("fouls", {})
+    corners_map = raw_payload.get("cornerKicks", {})
+    offside_map = raw_payload.get("offside", {})
+    assists_map = raw_payload.get("goalAssistances", {})
+    penalties_map = raw_payload.get("penalties", {})
+
+    for tid_str, t_info in teams_map.items():
+        try:
+            team_id = int(tid_str)
+            team_name = t_info.get("name") if isinstance(t_info, dict) else str(tid_str)
+            short_name = t_info.get("shortName") if isinstance(t_info, dict) else None
+
+            matches = TeamMatchesContract.model_validate(matches_map.get(tid_str, {}))
+            goals = TeamGoalsStatsContract.model_validate(goals_map.get(tid_str, {}))
+            shots = TeamShotsStatsContract.model_validate(shots_map.get(tid_str, {}))
+            passes = TeamPassesStatsContract.model_validate(passes_map.get(tid_str, {}))
+            cards = TeamCardsStatsContract.model_validate(cards_map.get(tid_str, {}))
+            stealing = TeamStealingStatsContract.model_validate(stealing_map.get(tid_str, {}))
+
+            club_raw = {
+                "team": t_info,
+                "matches": matches_map.get(tid_str),
+                "goals": goals_map.get(tid_str),
+                "shots": shots_map.get(tid_str),
+                "passes": passes_map.get(tid_str),
+                "cards": cards_map.get(tid_str),
+                "stealing": stealing_map.get(tid_str),
+                "fouls": fouls_map.get(tid_str),
+                "cornerKicks": corners_map.get(tid_str),
+                "offside": offside_map.get(tid_str),
+                "goalAssistances": assists_map.get(tid_str),
+                "penalties": penalties_map.get(tid_str),
+            }
+
+            item = ValidatedTeamStatsItem(
+                team_id=team_id,
+                name=team_name,
+                short_name=short_name,
+                matches=matches,
+                goals=goals,
+                shots=shots,
+                passes=passes,
+                cards=cards,
+                stealing=stealing,
+                fouls=fouls_map.get(tid_str),
+                corner_kicks=corners_map.get(tid_str),
+                offside=offside_map.get(tid_str),
+                goal_assistances=assists_map.get(tid_str),
+                penalties=penalties_map.get(tid_str),
+                raw_payload=club_raw,
+            )
+            valid_teams_stats[team_id] = item
+
+        except (ValueError, ValidationError) as err:
+            report.quarantined_count += 1
+            report.quarantine_errors.append({
+                "entity": "team_stats",
+                "team_id": tid_str,
+                "error": str(err),
+            })
+
+    report.valid_count = len(valid_teams_stats)
+    logger.info(
+        "Validación de estadísticas de clubes finalizada | %d válidos (%d cuarentena)",
+        report.valid_count,
+        report.quarantined_count,
+    )
+
+    return (
+        ValidatedTeamsDataset(teams_stats=valid_teams_stats, raw_payload=raw_payload),
+        report,
+    )
+

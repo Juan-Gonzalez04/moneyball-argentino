@@ -188,3 +188,39 @@ Cada sesión o hito significativo debe documentarse con el siguiente formato:
   4. Se formalizó la regla: las estadísticas de clubes deben desacoplarse del plantel y consumirse desde el endpoint oficial de equipos (`teamsStats.json` en Fase 2).
 * **Lección / Buena Práctica:** En ingeniería de datos para deportes, el grano del dato del atleta nunca equivale al grano del club debido a la movilidad de las dimensiones (*Slowly Changing Dimensions*).
 * **Próximos Pasos:** Abrir Pull Request exhaustiva para mergear la Fase 1 (*Vertical Slice MVP*) a la rama principal y dar inicio a la Fase 2 (Métricas oficiales de clubes y Motor de Similitud Per 90).
+
+---
+
+### [2026-11-07] - Fase 2 Kickoff: Definición de Alcance de Ingeniería de Datos y E-V-T-L para Estadísticas de Clubes
+* **Fase / Módulo:** Fase 2 / Ingeniería de Datos, Resiliencia y Observabilidad
+* **Objetivo de la sesión:** Establecer el alcance formal de la Fase 2 en la rama `feature/fase-2-data-engineering`, priorizando el pipeline E-V-T-L completo para el endpoint de estadísticas oficiales de clubes (`teamsStats.json`), observabilidad de nuevos registros en logs, persistencia de bitácoras con rotación, automatización del ETL al levantar Docker y healthchecks de base de datos.
+* **Desafío / Análisis Crítico:**
+  1. La AFA expone las métricas colectivas oficiales de los 30 clubes en `teamsStats.json` (partidos ganados/empatados/perdidos, goles reales, tiros, precisión de pases, recuperaciones y faltas). Si no se ingesta este endpoint de inmediato, se pierde información histórica irrecuperable de los torneos.
+  2. Actualmente los logs solo salen a consola estándar (`stdout`), perdiendo trazabilidad ante reinicios del servidor *Argos*.
+  3. El contenedor ETL permanece inactivo (`tail -f /dev/null`), obligando a disparar ejecuciones manuales cada vez que se enciende el servidor.
+  4. La carga masiva en PostgreSQL no distingue entre actualizaciones e inserciones de nuevos jugadores o clubes que debutan en la temporada.
+* **Alcance Acordado (Scope):**
+  1. **E-V-T-L Completo de `team_stats`:** Extracción HTTPX con snapshot Bronze (SHA-256), contratos Pydantic v2 con cuarentena, normalización relacional y tabla canónica `team_stats` en PostgreSQL con upsert idempotente.
+  2. **Observabilidad y Auditoría:** Detección de altas (`N nuevos futbolistas / clubes insertados`) y `RotatingFileHandler` a `logs/etl.log`.
+  3. **Infraestructura Resiliente:** Postgres Healthcheck (`pg_isready`), arranque automático de ETL en entrypoint de contenedor y volcado a disco de registros en cuarentena.
+  4. **Cierre de Brecha ADR-0010:** Migración del dashboard para consumir estadísticas institucionales canónicas desde `team_stats`.
+* **Próximos Pasos:** Abrir la Pull Request formal en GitHub con el checklist detallado del alcance e iniciar la implementación del pipeline E-V-T-L de `teamsStats`.
+
+---
+
+### [2026-11-08] - Implementación Completa de Fase 2: Pipeline E-V-T-L de `team_stats`, CDC de Altas, Logging Rotativo y Auto-Ejecución en Docker
+* **Fase / Módulo:** Fase 2 / Pipeline E-V-T-L, Observabilidad e Infraestructura
+* **Objetivo de la sesión:** Ejecutar la totalidad de prioridades acordadas en la PR #9: E-V-T-L completo de `teamsStats.json`, auditoría de altas en logs, logging rotativo a disco (`logs/etl.log`), auto-ejecución del pipeline en entrypoint de Docker con healthcheck de base de datos y migración del dashboard.
+* **Desafío / Análisis Crítico:**
+  1. La API deportiva expone métricas oficiales de equipos con formatos dispersos (porcentajes como strings `'72.3%'`, campos nulos en penales para clubes sin tiros desde los 12 pasos).
+  2. El arranque de contenedores podía generar colisiones de carrera (*race condition*) si el script ETL intentaba conectarse a PostgreSQL antes de que el proceso estuviera listo para aceptar conexiones (`ready for connections`).
+  3. Los registros de logs se duplicaban en consola si los submódulos configuraban handlers independientes.
+* **Solución Aplicada:**
+  1. **Bronze & Data Contracts:** Extracción asíncrona vía HTTPX con hash SHA-256 (`data/raw/teamsStats_*.json`) y 7 contratos Pydantic v2 en `etl/src/schemas.py` con aislamiento por cuarentena.
+  2. **Persistencia Relacional Canónica:** Creación de la tabla `team_stats` con 33 columnas normalizadas, índices B-Tree y GIN, y carga masiva idempotente en `etl/src/load.py`.
+  3. **Auditoría de Altas (CDC):** Comparación de conjuntos previa a la inserción masiva. Se detectaron y loguearon con éxito 9 futbolistas nuevos incorporados en la fecha (ej. Agustín Bravo de Instituto, Federico Vera de Huracán y juveniles de Estudiantes de Río Cuarto).
+  4. **Logging Estructurado Rotativo:** Módulo centralizado `etl/src/logger.py` con `RotatingFileHandler` (5 MB, 5 backups) en `logs/etl.log`, con `propagate = False` para eliminar duplicaciones.
+  5. **Auto-Ejecución en Docker:** Script `scripts/entrypoint_etl.sh` que sondea `pg_isready`, ejecuta `python -m etl.src.main` al levantar el servicio y pasa a espera activa. `docker-compose.yml` configurado con healthcheck de Postgres y directiva `restart: unless-stopped`.
+  6. **Migración del Dashboard:** `dashboard/data.py` y `dashboard/views/teams_view.py` consumen directamente la tabla oficial `team_stats`, resolviendo de forma canónica el desajuste de goles del ADR-0010 (Caso Defensa y Justicia).
+* **Lección / Buena Práctica:** Diseñar infraestructura que arranque de forma autónoma y determinista ante cortes de energía o reinicios de hardware. La detección de altas previa a la carga aporta trazabilidad sin penalizar la latencia del pipeline (ejecución completa en 1.10 segundos).
+* **Próximos Pasos:** Code Review de la PR #9, merge a `develop` y despliegue continuo en el nodo bare-metal *Argos*.
