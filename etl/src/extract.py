@@ -25,11 +25,6 @@ from etl.src.config import (
     RAW_DATA_DIR,
 )
 
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
 logger = logging.getLogger("etl.extract")
 
 

@@ -35,6 +35,8 @@ class LoadSummary(NamedTuple):
     goals_upserted: int
     stats_upserted: int
     team_stats_upserted: int
+    new_teams_count: int
+    new_players_count: int
     success: bool
 
 
@@ -59,6 +61,39 @@ def load_dataset_to_postgres(dataset: TransformedDataset) -> LoadSummary:
     try:
         with conn:
             with conn.cursor() as cur:
+                # --------------------------------------------------------------
+                # 0. Auditoría de Altas (Change Data Capture previo)
+                # --------------------------------------------------------------
+                cur.execute("SELECT team_id FROM teams;")
+                existing_team_ids = {r[0] for r in cur.fetchall()}
+                new_teams = [t for t in dataset.teams if t["team_id"] not in existing_team_ids]
+
+                if new_teams:
+                    logger.info("🆕 Se detectaron %d CLUBES NUEVOS para incorporar:", len(new_teams))
+                    for nt in new_teams:
+                        logger.info("  * [ID: %s] %s (%s)", nt["team_id"], nt["name"], nt.get("short_name") or "-")
+                else:
+                    logger.info("Auditoría de clubes: 0 clubes nuevos (todos los clubes ya existían en BD).")
+
+                cur.execute("SELECT player_id FROM players;")
+                existing_player_ids = {r[0] for r in cur.fetchall()}
+                new_players = [p for p in dataset.players if p["player_id"] not in existing_player_ids]
+
+                if new_players:
+                    logger.info("🆕 Se detectaron %d FUTBOLISTAS NUEVOS para incorporar:", len(new_players))
+                    for np in new_players:
+                        p_name = np.get("nick_name") or f"{np.get('first_name', '')} {np.get('last_name', '')}".strip()
+                        logger.info(
+                            "  * [ID: %s] %s (Club: %s | Dorsal: %s | Edad: %s)",
+                            np["player_id"],
+                            p_name,
+                            np.get("current_team_name") or "-",
+                            np.get("squad_no") or "-",
+                            np.get("age") or "-",
+                        )
+                else:
+                    logger.info("Auditoría de futbolistas: 0 futbolistas nuevos (planteles existentes actualizados).")
+
                 # --------------------------------------------------------------
                 # 1. Cargar Equipos (teams)
                 # --------------------------------------------------------------
@@ -241,6 +276,8 @@ def load_dataset_to_postgres(dataset: TransformedDataset) -> LoadSummary:
             goals_upserted=len(dataset.player_goals),
             stats_upserted=len(dataset.player_stats),
             team_stats_upserted=0,
+            new_teams_count=len(new_teams),
+            new_players_count=len(new_players),
             success=True,
         )
 

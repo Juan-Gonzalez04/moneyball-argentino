@@ -6,19 +6,18 @@ y ejecuta un smoke test analítico sobre PostgreSQL.
 """
 
 from datetime import datetime, timezone
+import json
 import logging
 import time
 
-from etl.src.config import AFA_PLAYERS_STATS_URL, AFA_TEAMS_STATS_URL
+from etl.src.config import AFA_PLAYERS_STATS_URL, AFA_TEAMS_STATS_URL, PROCESSED_DATA_DIR
+from etl.src.logger import configure_logging
 from etl.src.extract import fetch_players_stats_full, fetch_teams_stats_full
 from etl.src.schemas import validate_afa_payload, validate_teams_stats_payload
 from etl.src.transform import transform_dataset, transform_teams_stats, resolve_season_year
 from etl.src.load import get_db_connection, load_dataset_to_postgres, load_team_stats_to_postgres
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+configure_logging("etl")
 logger = logging.getLogger("etl.main")
 
 
@@ -133,6 +132,24 @@ def main():
             teams_report.quarantined_count,
         )
 
+    # Volcado persistente a disco si se detectan anomalías en cuarentena
+    quarantine_errors = []
+    if players_report.quarantine_errors:
+        quarantine_errors.extend(players_report.quarantine_errors)
+    if teams_report.quarantine_errors:
+        quarantine_errors.extend(teams_report.quarantine_errors)
+
+    if quarantine_errors:
+        ts_now = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        quarantine_file = PROCESSED_DATA_DIR / f"quarantined_{ts_now}.json"
+        with open(quarantine_file, "w", encoding="utf-8") as qf:
+            json.dump({
+                "timestamp_utc": ts_now,
+                "total_quarantined": len(quarantine_errors),
+                "errors": quarantine_errors,
+            }, qf, indent=2, ensure_ascii=False)
+        logger.warning("⚠️ Anomalías de validación persistidas en cuarentena: %s", quarantine_file)
+
     # --------------------------------------------------------------------------
     # FASE 3: TRANSFORM (Normalización Relacional)
     # --------------------------------------------------------------------------
@@ -150,10 +167,12 @@ def main():
 
     elapsed_time = time.perf_counter() - start_time
     logger.info(
-        "Pipeline completado exitosamente en %.2f segundos (%d equipos, %d jugadores, %d métricas de clubes).",
+        "Pipeline completado exitosamente en %.2f segundos (%d equipos [%d nuevos], %d jugadores [%d nuevos], %d métricas de clubes).",
         elapsed_time,
         load_summary.teams_upserted,
+        load_summary.new_teams_count,
         load_summary.players_upserted,
+        load_summary.new_players_count,
         teams_stats_loaded,
     )
 
