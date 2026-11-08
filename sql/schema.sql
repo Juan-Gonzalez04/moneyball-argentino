@@ -89,7 +89,51 @@ CREATE TABLE IF NOT EXISTS player_stats (
 );
 
 -- ==============================================================================
--- 6. Índices para Aceleración de Consultas de Scouting
+-- 6. Tabla: Estadísticas Oficiales de Clubes (Team Stats)
+-- ==============================================================================
+-- Métricas colectivas institucionales canónicas (partidos, goles reales,
+-- tiros, posesión/pases, efectividad y disciplina)
+CREATE TABLE IF NOT EXISTS team_stats (
+    team_id INT REFERENCES teams(team_id) ON DELETE CASCADE,
+    season_year INT NOT NULL,
+    matches_played INT DEFAULT 0,
+    matches_won INT DEFAULT 0,
+    matches_drawn INT DEFAULT 0,
+    matches_lost INT DEFAULT 0,
+    points INT DEFAULT 0,
+    goals_for INT DEFAULT 0,
+    goals_first_half INT DEFAULT 0,
+    goals_second_half INT DEFAULT 0,
+    goals_head INT DEFAULT 0,
+    goals_penalty INT DEFAULT 0,
+    goals_freekick INT DEFAULT 0,
+    goals_own INT DEFAULT 0,
+    shots_total INT DEFAULT 0,
+    shots_on_target INT DEFAULT 0,
+    shots_off_target INT DEFAULT 0,
+    shots_woodwork INT DEFAULT 0,
+    conversion_rate_pct NUMERIC(5,2) DEFAULT 0.0,
+    passes_correct INT DEFAULT 0,
+    passes_incorrect INT DEFAULT 0,
+    passes_total INT DEFAULT 0,
+    pass_accuracy_pct NUMERIC(5,2) DEFAULT 0.0,
+    fouls_committed INT DEFAULT 0,
+    fouls_received INT DEFAULT 0,
+    yellow_cards INT DEFAULT 0,
+    double_yellow_cards INT DEFAULT 0,
+    red_cards INT DEFAULT 0,
+    steals_total INT DEFAULT 0,
+    corner_kicks INT DEFAULT 0,
+    offsides INT DEFAULT 0,
+    goal_assistances INT DEFAULT 0,
+    raw_payload JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (team_id, season_year)
+);
+
+-- ==============================================================================
+-- 7. Índices para Aceleración de Consultas de Scouting y Métricas
 -- ==============================================================================
 
 -- B-Tree para filtros rápidos por edad, equipo y posición
@@ -101,6 +145,11 @@ CREATE INDEX IF NOT EXISTS idx_players_position ON players(position_id);
 CREATE INDEX IF NOT EXISTS idx_stats_minutes ON player_stats(minutes_total);
 CREATE INDEX IF NOT EXISTS idx_goals_total ON player_goals(total_goals);
 
+-- Índices para métricas institucionales de clubes
+CREATE INDEX IF NOT EXISTS idx_team_stats_points ON team_stats(points);
+CREATE INDEX IF NOT EXISTS idx_team_stats_goals_for ON team_stats(goals_for);
+
 -- Índice GIN para búsquedas y consultas arbitrarias sobre el payload JSONB
 CREATE INDEX IF NOT EXISTS idx_players_raw_payload_gin ON players USING gin(raw_payload);
 CREATE INDEX IF NOT EXISTS idx_teams_raw_payload_gin ON teams USING gin(raw_payload);
+CREATE INDEX IF NOT EXISTS idx_team_stats_raw_payload_gin ON team_stats USING gin(raw_payload);
