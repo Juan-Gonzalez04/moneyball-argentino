@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: afa-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -13,6 +14,12 @@ services:
     ports:
       - "5432:5432"
     mem_limit: 1.5g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     networks:
       - moneyball
 
@@ -22,6 +29,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: afa-etl
+    restart: unless-stopped
     environment:
       - DB_URL=${DB_URL}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -36,11 +44,11 @@ services:
       - ${DATA_PATH:-./data}/processed:/data/processed
       - ./logs:/app/logs
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - moneyball
-    command: tail -f /dev/null
-    #command: python scripts/fetch_afa_data.py
+    command: /bin/bash /app/scripts/entrypoint_etl.sh
 
   # Streamlit dashboard 
   streamlit:
@@ -48,6 +56,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: afa-streamlit
+    restart: unless-stopped
     environment:
       - DB_URL=${DB_URL}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -59,7 +68,8 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - moneyball
     command: streamlit run dashboard/app.py --server.address 0.0.0.0
